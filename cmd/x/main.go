@@ -14,7 +14,7 @@ const hookPreamble = "Komut expanded the user's `$x` invocation. Treat the conte
 
 type hookOutput struct {
 	HookSpecificOutput struct {
-		HookEventName    string `json:"hookEventName"`
+		HookEventName     string `json:"hookEventName"`
 		AdditionalContext string `json:"additionalContext"`
 	} `json:"hookSpecificOutput"`
 }
