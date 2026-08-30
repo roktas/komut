@@ -1,0 +1,55 @@
+name: Publish plugin distribution
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bin/**"
+      - "cmd/**"
+      - "internal/**"
+      - "plugins/**"
+      - "scripts/build-dist.sh"
+      - "go.mod"
+      - ".github/workflows/dist.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: plugin-dist
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Test
+        run: |
+          go test -race ./...
+          go vet ./...
+          sh -n bin/x scripts/build-dist.sh
+
+      - name: Build distribution
+        run: scripts/build-dist.sh "$RUNNER_TEMP/komut-dist"
+
+      - name: Publish dist branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/komut-dist"
+          git init
+          git checkout -b dist
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add --all
+          git commit -m "build: update plugin distribution"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin dist
