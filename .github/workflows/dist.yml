@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      - "*.go"
+      - ".agents/plugins/**"
       - "bin/**"
       - "cmd/**"
       - "internal/**"
@@ -41,15 +43,12 @@ jobs:
         run: sh scripts/build-dist.sh "$RUNNER_TEMP/komut-dist"
 
       - name: Publish dist branch
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          cd "$RUNNER_TEMP/komut-dist"
-          git init
-          git checkout -b dist
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git checkout --orphan dist
+          git rm -rf .
+          cp -R "$RUNNER_TEMP/komut-dist/." .
           git add --all
           git commit -m "build: update plugin distribution"
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push --force origin dist
