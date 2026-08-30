@@ -72,8 +72,8 @@ func TestHookDispatchesUsingPayloadCWD(t *testing.T) {
 	if err := run([]string{"--hook"}, strings.NewReader(input), &out); err != nil {
 		t.Fatal(err)
 	}
-	if out.String() != "Hello world" {
-		t.Fatalf("output = %q", out.String())
+	if want := hookPreamble + "Hello world"; out.String() != want {
+		t.Fatalf("output = %q, want %q", out.String(), want)
 	}
 }
 
