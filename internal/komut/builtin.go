@@ -2,6 +2,7 @@ package komut
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -123,11 +124,15 @@ func newPrompt(args []string, invocation Invocation, resolver *Resolver) (string
 		}
 	}
 
-	root := resolver.projectCommands
+	var root string
 	if scope == "user" {
 		root = resolver.userCommands
-	} else if root == "" {
-		root = filepath.Join(resolver.cwd, ".agents", "commands")
+	} else {
+		var err error
+		root, err = projectAuthoringRoot(resolver)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	var b strings.Builder
@@ -156,6 +161,37 @@ func newPrompt(args []string, invocation Invocation, resolver *Resolver) (string
 	}
 
 	return b.String(), nil
+}
+
+func projectAuthoringRoot(resolver *Resolver) (string, error) {
+	if resolver.projectCommands != "" {
+		return resolver.projectCommands, nil
+	}
+
+	home := filepath.Dir(filepath.Dir(resolver.userCommands))
+	if samePath(resolver.cwd, home) {
+		return "", fail(
+			ErrInvalidInvocation,
+			builtinNew,
+			"project scope is unavailable at the user home; use --user or run from a project directory",
+		)
+	}
+
+	agents := filepath.Join(resolver.cwd, ".agents")
+	commands := filepath.Join(agents, "commands")
+	for _, path := range []string{agents, commands} {
+		info, err := os.Lstat(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return "", fail(ErrUnsafeProjectPath, builtinNew, fmt.Sprintf("cannot inspect project authoring path %s: %v", path, err))
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return "", fail(ErrUnsafeProjectPath, builtinNew, fmt.Sprintf("unsafe project authoring path: %s", path))
+		}
+	}
+	return commands, nil
 }
 
 func isBuiltin(name string) bool {
