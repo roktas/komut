@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/roktas/komut/internal/komut"
 )
+
+const hookPreamble = "Komut expanded the user's `$x` invocation. Treat the content below as the user's instruction for this turn. Do not interpret the literal `$x` invocation separately.\n\n"
 
 func main() {
 	if err := run(os.Args[1:], os.Stdin, os.Stdout); err != nil {
@@ -39,7 +42,16 @@ func runHook(stdin io.Reader, stdout io.Writer) error {
 	if !komut.HasInvocationPrefix(input.Prompt) {
 		return nil
 	}
-	return dispatch(input.Prompt, input.CWD, stdout)
+
+	var rendered strings.Builder
+	if err := dispatch(input.Prompt, input.CWD, &rendered); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(stdout, hookPreamble); err != nil {
+		return err
+	}
+	_, err := io.WriteString(stdout, rendered.String())
+	return err
 }
 
 func dispatch(input, cwd string, stdout io.Writer) error {
