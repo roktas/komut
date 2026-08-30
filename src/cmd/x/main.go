@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,20 +53,14 @@ func runHook(stdin io.Reader, stdout io.Writer) error {
 	var input hookInput
 	decoder := json.NewDecoder(stdin)
 	if err := decoder.Decode(&input); err != nil {
-		return nil
+		return fmt.Errorf("decode hook input: %w", err)
 	}
 	var extra any
 	if err := decoder.Decode(&extra); err != io.EOF {
-		return nil
-	}
-	if input.CWD == "" {
-		return nil
+		return fmt.Errorf("decode hook input: expected one JSON value")
 	}
 
-	event := input.HookEventName
-	if event == "" {
-		event = "UserPromptSubmit"
-	}
+	event := cmp.Or(input.HookEventName, "UserPromptSubmit")
 
 	invocation := ""
 	switch event {
@@ -87,6 +82,9 @@ func runHook(stdin io.Reader, stdout io.Writer) error {
 		}
 	default:
 		return nil
+	}
+	if input.CWD == "" {
+		return fmt.Errorf("hook input is missing cwd")
 	}
 
 	var rendered strings.Builder

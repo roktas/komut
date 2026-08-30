@@ -28,8 +28,7 @@ function expand(prompt, cwd) {
 }
 
 function invocation(args) {
-        const text = args.trim();
-        return text === "" ? "$x" : `$x ${text}`;
+        return args.trim() === "" ? "$x" : `$x ${args}`;
 }
 
 export default Plugin.define({

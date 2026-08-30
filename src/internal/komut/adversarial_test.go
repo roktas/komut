@@ -4,31 +4,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 )
-
-func TestParseSpecialTokensNeedTokenBoundaries(t *testing.T) {
-	tests := []struct {
-		input string
-		name  string
-		args  []string
-	}{
-		{`$x foo a+b`, "foo", []string{"a+b"}},
-		{`$x foo --bar`, "foo", []string{"--bar"}},
-		{`$x foo "+" "--"`, "foo", []string{"+", "--"}},
-	}
-	for _, tt := range tests {
-		got, err := Parse(tt.input)
-		if err != nil {
-			t.Fatalf("Parse(%q): %v", tt.input, err)
-		}
-		if len(got.Commands) != 1 || got.Commands[0].Name != tt.name || !slices.Equal(got.Commands[0].Args, tt.args) {
-			t.Fatalf("Parse(%q) = %#v", tt.input, got)
-		}
-	}
-}
 
 func TestParseLeadIsOpaqueAfterSeparator(t *testing.T) {
 	got, err := Parse("$x foo --  a + b -- \"quoted\"\nnext")

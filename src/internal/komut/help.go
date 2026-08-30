@@ -90,8 +90,7 @@ func (r *Resolver) ListCommands() ([]HelpEntry, error) {
 		return nil, err
 	}
 
-	entries := slices.Collect(maps.Values(commands))
-	slices.SortFunc(entries, func(a, b HelpEntry) int {
+	entries := slices.SortedFunc(maps.Values(commands), func(a, b HelpEntry) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 	return entries, nil

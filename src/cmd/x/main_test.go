@@ -32,7 +32,7 @@ func TestReadInvocation(t *testing.T) {
 
 func TestHookNonInvocationIsNoop(t *testing.T) {
 	var out strings.Builder
-	if err := run([]string{"--hook"}, strings.NewReader(`{"prompt":"hello","cwd":"/tmp"}`), &out); err != nil {
+	if err := run([]string{"--hook"}, strings.NewReader(`{"prompt":"hello"}`), &out); err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
@@ -40,10 +40,22 @@ func TestHookNonInvocationIsNoop(t *testing.T) {
 	}
 }
 
-func TestHookMalformedInputIsNoop(t *testing.T) {
+func TestHookMalformedInputFails(t *testing.T) {
+	for _, input := range []string{`{`, `{"prompt":"$x","cwd":"/tmp"} {}`} {
+		var out strings.Builder
+		if err := run([]string{"--hook"}, strings.NewReader(input), &out); err == nil {
+			t.Fatalf("run(%q) error = nil", input)
+		}
+		if out.Len() != 0 {
+			t.Fatalf("run(%q) output = %q", input, out.String())
+		}
+	}
+}
+
+func TestHookInvocationWithoutCWDFails(t *testing.T) {
 	var out strings.Builder
-	if err := run([]string{"--hook"}, strings.NewReader(`{`), &out); err != nil {
-		t.Fatal(err)
+	if err := run([]string{"--hook"}, strings.NewReader(`{"prompt":"$x"}`), &out); err == nil {
+		t.Fatal("error = nil")
 	}
 	if out.Len() != 0 {
 		t.Fatalf("output = %q", out.String())
@@ -51,8 +63,7 @@ func TestHookMalformedInputIsNoop(t *testing.T) {
 }
 
 func TestHookDispatchesUserPromptSubmitUsingPayloadCWD(t *testing.T) {
-	base, home, project := hookTestProject(t)
-	_ = base
+	_, home, project := hookTestProject(t)
 
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
@@ -184,17 +195,9 @@ func runHookOutput(t *testing.T, input string) hookOutput {
 }
 
 func quoteJSON(value string) string {
-	var b strings.Builder
-	b.WriteByte('"')
-	for _, r := range value {
-		switch r {
-		case '\\', '"':
-			b.WriteByte('\\')
-			b.WriteRune(r)
-		default:
-			b.WriteRune(r)
-		}
+	data, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
 	}
-	b.WriteByte('"')
-	return b.String()
+	return string(data)
 }

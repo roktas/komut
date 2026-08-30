@@ -180,10 +180,18 @@ func readValidFile(path, name string, expected os.FileInfo, changedCode ErrorCod
 func samePath(a, b string) bool {
 	a = filepath.Clean(a)
 	b = filepath.Clean(b)
-	if runtime.GOOS == "windows" {
-		return strings.EqualFold(a, b)
+	if a == b || runtime.GOOS == "windows" && strings.EqualFold(a, b) {
+		return true
 	}
-	return a == b
+	aInfo, err := os.Stat(a)
+	if err != nil {
+		return false
+	}
+	bInfo, err := os.Stat(b)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(aInfo, bInfo)
 }
 
 func pathHasNonDirectoryParent(path string) bool {

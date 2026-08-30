@@ -77,6 +77,37 @@ func TestDispatchHomeCommandsAreUserScope(t *testing.T) {
 	}
 }
 
+func TestDispatchTreatsSymlinkAliasAsUserHome(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink permissions vary on Windows")
+	}
+
+	base := t.TempDir()
+	home := filepath.Join(base, "real-home")
+	homeAlias := filepath.Join(base, "home")
+	commands := filepath.Join(home, ".agents", "commands")
+	target := filepath.Join(base, "review.md")
+	mustMkdirAll(t, commands)
+	mustWriteFile(t, target, []byte("user review"))
+	if err := os.Symlink(target, filepath.Join(commands, "review.md")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(home, homeAlias); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Dispatch(`$x review`, home, homeAlias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "user review" {
+		t.Fatalf("Dispatch() = %q", got)
+	}
+
+	_, err = Dispatch(`$x :new review`, home, homeAlias)
+	assertErrorCode(t, err, ErrInvalidInvocation)
+}
+
 func TestDispatchSlashCommand(t *testing.T) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")

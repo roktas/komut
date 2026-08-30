@@ -147,6 +147,7 @@ func TestOpenCodePackage(t *testing.T) {
 		`join(root, "bin", process.platform === "win32" ? "x.cmd" : "x")`,
 		`spawnSync(launcherPath()`,
 		`/^\s*\$x(?:\s|$)/u`,
+		"return args.trim() === \"\" ? \"$x\" : `$x ${args}`;",
 	} {
 		if !strings.Contains(source, required) {
 			t.Fatalf("OpenCode adapter is missing %q", required)
@@ -158,6 +159,7 @@ func TestOpenCodePackage(t *testing.T) {
 		`text: expand(invocation(prompt.text)`,
 		`libexec`,
 		`process.arch`,
+		`const text = args.trim();`,
 	} {
 		if strings.Contains(source, forbidden) {
 			t.Fatalf("OpenCode adapter contains stale or duplicated logic %q", forbidden)
