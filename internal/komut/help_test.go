@@ -127,6 +127,27 @@ func TestHelpWithNoCommandsShowsAbsoluteCreationPaths(t *testing.T) {
 	}
 }
 
+func TestHelpAtUserHomeDoesNotMislabelUserPathAsProject(t *testing.T) {
+	home := t.TempDir()
+
+	got, err := Dispatch(`$x`, home, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	userCommands := filepath.Join(home, ".agents", "commands")
+	if strings.Count(got, userCommands) != 1 {
+		t.Fatalf("help = %q, user path count = %d", got, strings.Count(got, userCommands))
+	}
+	for _, text := range []string{
+		"Project commands are unavailable from the user home.",
+		"<project>/.agents/commands",
+	} {
+		if !strings.Contains(got, text) {
+			t.Fatalf("help = %q, missing %q", got, text)
+		}
+	}
+}
+
 func TestHelpNoCommandsUsesExistingNearestProjectPath(t *testing.T) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
