@@ -11,7 +11,7 @@ on:
       - "cmd/**"
       - "internal/**"
       - "plugins/**"
-      - "scripts/build-dist.sh"
+      - "scripts/**"
       - "go.mod"
       - ".github/workflows/dist.yml"
   workflow_dispatch:
@@ -24,12 +24,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verify-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Test Windows launcher
+        shell: pwsh
+        run: |
+          go test ./...
+          go vet ./...
+
+          New-Item -ItemType Directory -Force -Path "libexec/x/windows-amd64" | Out-Null
+          go build -trimpath -ldflags="-s -w" -o "libexec/x/windows-amd64/x.exe" ./cmd/x
+
+          $home = Join-Path $env:RUNNER_TEMP "komut-home"
+          $project = Join-Path $home "project"
+          $commands = Join-Path $project ".agents/commands"
+          New-Item -ItemType Directory -Force -Path $commands | Out-Null
+          Set-Content -Path (Join-Path $commands "hello.md") -Value 'Hello $1' -NoNewline
+          $env:HOME = $home
+          $env:USERPROFILE = $home
+
+          Push-Location $project
+          try {
+            $output = & "$env:GITHUB_WORKSPACE\bin\x.cmd" '$x hello world'
+            $status = $LASTEXITCODE
+          } finally {
+            Pop-Location
+          }
+
+          if ($status -ne 0) {
+            throw "x.cmd exited with status $status"
+          }
+          if (($output -join "`n") -ne "Hello world") {
+            throw "unexpected x.cmd output: $output"
+          }
+
   publish:
+    needs: verify-windows
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: false
@@ -38,10 +81,19 @@ jobs:
         run: |
           go test -race ./...
           go vet ./...
-          sh -n bin/x plugins/claude/hooks/run.cmd scripts/build-dist.sh
+          unformatted=$(gofmt -l cmd internal *.go)
+          if [ -n "$unformatted" ]; then
+                  printf 'gofmt required:\n%s\n' "$unformatted" >&2
+                  exit 1
+          fi
+          sh -n bin/x plugins/claude/hooks/run.cmd scripts/build-dist.sh scripts/smoke-dist.sh
+          node --check plugins/opencode/src/index.js
 
       - name: Build distribution
         run: sh scripts/build-dist.sh "$RUNNER_TEMP/komut-dist"
+
+      - name: Smoke test distribution
+        run: sh scripts/smoke-dist.sh "$RUNNER_TEMP/komut-dist"
 
       - name: Publish dist branch
         run: |
