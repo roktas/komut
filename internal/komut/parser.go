@@ -245,3 +245,15 @@ func validSegment(segment string) bool {
 func isAlphaNum(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= '0' && c <= '9'
 }
+
+func HasInvocationPrefix(input string) bool {
+	if !utf8.ValidString(input) {
+		return false
+	}
+	p := parser{input: input}
+	p.skipSpace()
+	if !p.consumeLiteral("$x") || p.eof() {
+		return false
+	}
+	return p.spaceAt(p.pos)
+}
