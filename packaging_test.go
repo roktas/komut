@@ -125,7 +125,7 @@ func TestOpenCodePackage(t *testing.T) {
 	for _, required := range []string{
 		`ctx.session.hook("prompt"`,
 		`ctx.session.get({ sessionID: event.sessionID })`,
-		`session.location.directory`,
+		`session.directory`,
 		`join(root, "bin", process.platform === "win32" ? "x.cmd" : "x")`,
 		`spawnSync(launcherPath()`,
 	} {
@@ -133,8 +133,8 @@ func TestOpenCodePackage(t *testing.T) {
 			t.Fatalf("OpenCode adapter is missing %q", required)
 		}
 	}
-	if strings.Contains(source, "libexec") || strings.Contains(source, "process.arch") {
-		t.Fatal("OpenCode adapter must delegate architecture selection to the launcher")
+	if strings.Contains(source, "session.location") || strings.Contains(source, "libexec") || strings.Contains(source, "process.arch") {
+		t.Fatal("OpenCode adapter must use the current session directory and delegate architecture selection to the launcher")
 	}
 }
 

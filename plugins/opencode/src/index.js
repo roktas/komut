@@ -34,7 +34,7 @@ export default Plugin.define({
                         if (!/^\s*\$x\s/u.test(event.prompt.text)) return;
 
                         const session = await ctx.session.get({ sessionID: event.sessionID });
-                        event.prompt.text = expand(event.prompt.text, session.location.directory);
+                        event.prompt.text = expand(event.prompt.text, session.directory);
                 });
         },
 });
