@@ -16,11 +16,8 @@ func Dispatch(input, cwd, home string) (string, error) {
 		return "", err
 	}
 
-	if hasHelpCommand(invocation) {
-		if len(invocation.Commands) != 1 || len(invocation.Commands[0].Args) != 0 || invocation.HasLead {
-			return "", fail(ErrInvalidInvocation, "help", "builtin help must be used as $x help")
-		}
-		return resolver.Help()
+	if containsBuiltin(invocation) {
+		return dispatchBuiltin(invocation, resolver)
 	}
 
 	components := make([]string, 0, len(invocation.Commands)+1)
@@ -50,9 +47,9 @@ func Dispatch(input, cwd, home string) (string, error) {
 	return strings.Join(components, "\n\n"), nil
 }
 
-func hasHelpCommand(invocation Invocation) bool {
+func containsBuiltin(invocation Invocation) bool {
 	for _, command := range invocation.Commands {
-		if command.Name == "help" {
+		if isBuiltin(command.Name) {
 			return true
 		}
 	}
