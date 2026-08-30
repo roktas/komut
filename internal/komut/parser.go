@@ -112,9 +112,8 @@ func (p *parser) parseCommand() (Command, error) {
 }
 
 func canonicalCommandName(name string) (string, error) {
-	switch name {
-	case "help", "?":
-		return builtinHelp, nil
+	if canonical, ok := builtinAlias(name); ok {
+		return canonical, nil
 	}
 	if strings.HasPrefix(name, ":") {
 		if !validBuiltinName(name) {
@@ -259,7 +258,7 @@ func (p *parser) eof() bool {
 }
 
 func ValidCommandName(name string) bool {
-	if name == "" || len(name) > 64 || name == "help" || strings.HasPrefix(name, "/") || strings.HasSuffix(name, "/") || strings.Contains(name, "//") {
+	if name == "" || len(name) > 64 || reservedApplicationName(name) || strings.HasPrefix(name, "/") || strings.HasSuffix(name, "/") || strings.Contains(name, "//") {
 		return false
 	}
 

@@ -24,9 +24,7 @@ func (r *Resolver) Help() (string, error) {
 
 	var b strings.Builder
 	b.WriteString("Builtins:\n\n")
-	b.WriteString(":help     List available commands. Aliases: help, ?\n")
-	b.WriteString(":new      Create a command with the agent.\n")
-	b.WriteString(":version  Show the installed Komut version.\n")
+	writeBuiltinHelp(&b)
 
 	if len(entries) == 0 {
 		projectCommands := r.projectCommands
@@ -59,6 +57,23 @@ func (r *Resolver) Help() (string, error) {
 		}
 	}
 	return b.String(), nil
+}
+
+func writeBuiltinHelp(b *strings.Builder) {
+	width := 0
+	for _, builtin := range builtinRegistry {
+		width = max(width, len(builtin.Name))
+	}
+	for _, builtin := range builtinRegistry {
+		b.WriteString(builtin.Name)
+		b.WriteString(strings.Repeat(" ", width-len(builtin.Name)+2))
+		b.WriteString(builtin.Description)
+		if len(builtin.Aliases) != 0 {
+			b.WriteString(" Aliases: ")
+			b.WriteString(strings.Join(builtin.Aliases, ", "))
+		}
+		b.WriteByte('\n')
+	}
 }
 
 func (r *Resolver) ListCommands() ([]HelpEntry, error) {

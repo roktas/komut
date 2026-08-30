@@ -29,6 +29,37 @@ func TestHelpAliasesAreEquivalent(t *testing.T) {
 	}
 }
 
+func TestBuiltinRegistryIsSelfConsistent(t *testing.T) {
+	seenNames := make(map[string]bool)
+	seenAliases := make(map[string]bool)
+	for _, builtin := range builtinRegistry {
+		if !validBuiltinName(builtin.Name) {
+			t.Fatalf("invalid builtin name %q", builtin.Name)
+		}
+		if builtin.Handler == nil || builtin.Description == "" {
+			t.Fatalf("incomplete builtin registration: %#v", builtin)
+		}
+		if seenNames[builtin.Name] {
+			t.Fatalf("duplicate builtin name %q", builtin.Name)
+		}
+		seenNames[builtin.Name] = true
+
+		for _, alias := range builtin.Aliases {
+			if seenAliases[alias] {
+				t.Fatalf("duplicate builtin alias %q", alias)
+			}
+			seenAliases[alias] = true
+			got, ok := builtinAlias(alias)
+			if !ok || got != builtin.Name {
+				t.Fatalf("builtinAlias(%q) = %q, %v", alias, got, ok)
+			}
+			if ValidCommandName(alias) {
+				t.Fatalf("builtin alias %q is not reserved from application commands", alias)
+			}
+		}
+	}
+}
+
 func TestHelpListsBuiltinRegistry(t *testing.T) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
@@ -39,15 +70,17 @@ func TestHelpListsBuiltinRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, text := range []string{
-		"Builtins:",
-		":help     List available commands. Aliases: help, ?",
-		":new      Create a command with the agent.",
-		":version  Show the installed Komut version.",
-		"No Komut commands found.",
-	} {
-		if !strings.Contains(got, text) {
-			t.Fatalf("help = %q, missing %q", got, text)
+	if !strings.Contains(got, "Builtins:") || !strings.Contains(got, "No Komut commands found.") {
+		t.Fatalf("help = %q", got)
+	}
+	for _, builtin := range builtinRegistry {
+		if !strings.Contains(got, builtin.Name) || !strings.Contains(got, builtin.Description) {
+			t.Fatalf("help = %q, missing builtin %#v", got, builtin)
+		}
+		for _, alias := range builtin.Aliases {
+			if !strings.Contains(got, alias) {
+				t.Fatalf("help = %q, missing alias %q", got, alias)
+			}
 		}
 	}
 }

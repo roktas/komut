@@ -12,28 +12,88 @@ const (
 	builtinVersion = ":version"
 )
 
+type builtinHandler func(Command, Invocation, *Resolver) (string, error)
+
+type builtinSpec struct {
+	Name        string
+	Description string
+	Aliases     []string
+	Handler     builtinHandler
+}
+
+var builtinRegistry = []builtinSpec{
+	{
+		Name:        builtinHelp,
+		Description: "List available commands.",
+		Aliases:     []string{"help", "?"},
+		Handler:     runHelpBuiltin,
+	},
+	{
+		Name:        builtinNew,
+		Description: "Create a command with the agent.",
+		Handler:     runNewBuiltin,
+	},
+	{
+		Name:        builtinVersion,
+		Description: "Show the installed Komut version.",
+		Handler:     runVersionBuiltin,
+	},
+}
+
 func dispatchBuiltin(invocation Invocation, resolver *Resolver) (string, error) {
 	if len(invocation.Commands) != 1 {
 		return "", fail(ErrInvalidInvocation, "", "builtin commands cannot be composed")
 	}
 
 	command := invocation.Commands[0]
-	switch command.Name {
-	case builtinHelp:
-		if len(command.Args) != 0 || invocation.HasLead {
-			return "", fail(ErrInvalidInvocation, builtinHelp, "builtin help accepts no arguments or lead text")
-		}
-		return resolver.Help()
-	case builtinNew:
-		return newPrompt(command.Args, invocation, resolver)
-	case builtinVersion:
-		if len(command.Args) != 0 || invocation.HasLead {
-			return "", fail(ErrInvalidInvocation, builtinVersion, "builtin version accepts no arguments or lead text")
-		}
-		return "Komut " + Version, nil
-	default:
+	builtin, ok := lookupBuiltin(command.Name)
+	if !ok {
 		return "", fail(ErrInvalidCommand, command.Name, "unknown builtin command")
 	}
+	return builtin.Handler(command, invocation, resolver)
+}
+
+func runHelpBuiltin(command Command, invocation Invocation, resolver *Resolver) (string, error) {
+	if len(command.Args) != 0 || invocation.HasLead {
+		return "", fail(ErrInvalidInvocation, command.Name, "builtin help accepts no arguments or lead text")
+	}
+	return resolver.Help()
+}
+
+func runNewBuiltin(command Command, invocation Invocation, resolver *Resolver) (string, error) {
+	return newPrompt(command.Args, invocation, resolver)
+}
+
+func runVersionBuiltin(command Command, invocation Invocation, _ *Resolver) (string, error) {
+	if len(command.Args) != 0 || invocation.HasLead {
+		return "", fail(ErrInvalidInvocation, command.Name, "builtin version accepts no arguments or lead text")
+	}
+	return "Komut " + Version, nil
+}
+
+func lookupBuiltin(name string) (builtinSpec, bool) {
+	for _, builtin := range builtinRegistry {
+		if builtin.Name == name {
+			return builtin, true
+		}
+	}
+	return builtinSpec{}, false
+}
+
+func builtinAlias(name string) (string, bool) {
+	for _, builtin := range builtinRegistry {
+		for _, alias := range builtin.Aliases {
+			if alias == name {
+				return builtin.Name, true
+			}
+		}
+	}
+	return "", false
+}
+
+func reservedApplicationName(name string) bool {
+	_, reserved := builtinAlias(name)
+	return reserved
 }
 
 func newPrompt(args []string, invocation Invocation, resolver *Resolver) (string, error) {
