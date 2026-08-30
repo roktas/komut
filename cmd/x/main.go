@@ -36,10 +36,15 @@ func runHook(stdin io.Reader, stdout io.Writer) error {
 		Prompt string `json:"prompt"`
 		CWD    string `json:"cwd"`
 	}
-	if err := json.NewDecoder(stdin).Decode(&input); err != nil {
+	decoder := json.NewDecoder(stdin)
+	if err := decoder.Decode(&input); err != nil {
 		return nil
 	}
-	if !komut.HasInvocationPrefix(input.Prompt) {
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return nil
+	}
+	if input.CWD == "" || !komut.HasInvocationPrefix(input.Prompt) {
 		return nil
 	}
 
