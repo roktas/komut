@@ -30,11 +30,11 @@ func TestParseSpecialTokensNeedTokenBoundaries(t *testing.T) {
 }
 
 func TestParseLeadIsOpaqueAfterSeparator(t *testing.T) {
-	got, err := Parse("$x foo --  a + b -- \\\"quoted\\\"\nnext")
+	got, err := Parse("$x foo --  a + b -- \"quoted\"\nnext")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "a + b -- \\\"quoted\\\"\nnext"
+	want := "a + b -- \"quoted\"\nnext"
 	if got.Lead != want {
 		t.Fatalf("Lead = %q, want %q", got.Lead, want)
 	}
@@ -82,7 +82,7 @@ func TestDispatchAcceptsCRLFCommandFileWithoutNormalization(t *testing.T) {
 }
 
 func FuzzParseNeverPanics(f *testing.F) {
-	for _, seed := range []string{"", "$x foo", "$x foo + bar -- lead", "$x foo \\\"a + b\\\"", string([]byte{0xff})} {
+	for _, seed := range []string{"", "$x foo", "$x foo + bar -- lead", `$x foo "a + b"`, string([]byte{0xff})} {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, input string) {
