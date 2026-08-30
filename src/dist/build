@@ -1,14 +1,14 @@
 #!/bin/sh
 set -eu
 
-root=$(CDPATH= cd "$(dirname "$0")/.." && pwd)
+root=$(CDPATH= cd "$(dirname "$0")/../.." && pwd)
 out=${1:-"$root/dist"}
 
 rm -rf "$out"
 
 for plugin in codex claude opencode; do
         mkdir -p "$out/plugins/$plugin/bin" "$out/plugins/$plugin/libexec/x"
-        cp -R "$root/plugins/$plugin/." "$out/plugins/$plugin/"
+        cp -R "$root/src/adapters/$plugin/." "$out/plugins/$plugin/"
         cp "$root/bin/x" "$out/plugins/$plugin/bin/x"
         cp "$root/bin/x.cmd" "$out/plugins/$plugin/bin/x.cmd"
         chmod 0755 "$out/plugins/$plugin/bin/x"
@@ -25,7 +25,7 @@ build() {
 
         mkdir -p "$(dirname "$temp")"
         (
-                cd "$root"
+                cd "$root/src"
                 CGO_ENABLED=0 GOOS=$goos GOARCH=$goarch \
                         go build -trimpath -ldflags="-s -w" \
                         -o "$temp" ./cmd/x

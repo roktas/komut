@@ -49,7 +49,7 @@ func makeLauncherFixture(t *testing.T, target string) string {
 	t.Helper()
 	root := t.TempDir()
 	mustMkdirAll(t, filepath.Join(root, "bin"))
-	launcher, err := os.ReadFile(filepath.Join("bin", "x"))
+	launcher, err := os.ReadFile(repoPath("bin/x"))
 	if err != nil {
 		t.Fatal(err)
 	}

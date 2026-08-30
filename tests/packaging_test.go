@@ -3,6 +3,7 @@ package komut_test
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -13,7 +14,7 @@ func TestCodexPluginManifest(t *testing.T) {
 		Name    string `json:"name"`
 		Version string `json:"version"`
 	}
-	readJSON(t, "plugins/codex/.codex-plugin/plugin.json", &manifest)
+	readJSON(t, "src/adapters/codex/.codex-plugin/plugin.json", &manifest)
 	if manifest.Name != "komut" || manifest.Version != productVersion(t) {
 		t.Fatalf("unexpected Codex manifest: %#v", manifest)
 	}
@@ -31,7 +32,7 @@ func TestCodexHookUsesPackagedDispatcher(t *testing.T) {
 			} `json:"UserPromptSubmit"`
 		} `json:"hooks"`
 	}
-	readJSON(t, "plugins/codex/hooks/hooks.json", &config)
+	readJSON(t, "src/adapters/codex/hooks/hooks.json", &config)
 
 	groups := config.Hooks.UserPromptSubmit
 	if len(groups) != 1 || len(groups[0].Hooks) != 1 {
@@ -52,7 +53,7 @@ func TestClaudePluginManifest(t *testing.T) {
 		Name    string `json:"name"`
 		Version string `json:"version"`
 	}
-	readJSON(t, "plugins/claude/.claude-plugin/plugin.json", &manifest)
+	readJSON(t, "src/adapters/claude/.claude-plugin/plugin.json", &manifest)
 	if manifest.Name != "komut" || manifest.Version != productVersion(t) {
 		t.Fatalf("unexpected Claude manifest: %#v", manifest)
 	}
@@ -72,7 +73,7 @@ func TestClaudeHooksUseCrossPlatformWrapper(t *testing.T) {
 			UserPromptExpansion []hookGroup `json:"UserPromptExpansion"`
 		} `json:"hooks"`
 	}
-	readJSON(t, "plugins/claude/hooks/hooks.json", &config)
+	readJSON(t, "src/adapters/claude/hooks/hooks.json", &config)
 
 	for name, groups := range map[string][]hookGroup{
 		"UserPromptSubmit":    config.Hooks.UserPromptSubmit,
@@ -87,11 +88,7 @@ func TestClaudeHooksUseCrossPlatformWrapper(t *testing.T) {
 		}
 	}
 
-	data, err := os.ReadFile("plugins/claude/hooks/run.cmd")
-	if err != nil {
-		t.Fatal(err)
-	}
-	source := string(data)
+	source := string(readRepoFile(t, "src/adapters/claude/hooks/run.cmd"))
 	for _, required := range []string{
 		`exec "$CLAUDE_PLUGIN_ROOT/bin/x" --hook`,
 		`call "%CLAUDE_PLUGIN_ROOT%\bin\x.cmd" --hook`,
@@ -103,11 +100,7 @@ func TestClaudeHooksUseCrossPlatformWrapper(t *testing.T) {
 }
 
 func TestClaudeNativeSkill(t *testing.T) {
-	data, err := os.ReadFile("plugins/claude/skills/x/SKILL.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	source := string(data)
+	source := string(readRepoFile(t, "src/adapters/claude/skills/x/SKILL.md"))
 	for _, required := range []string{
 		"name: x",
 		"disable-model-invocation: true",
@@ -134,7 +127,7 @@ func TestOpenCodePackage(t *testing.T) {
 		} `json:"exports"`
 		Dependencies map[string]string `json:"dependencies"`
 	}
-	readJSON(t, "plugins/opencode/package.json", &manifest)
+	readJSON(t, "src/adapters/opencode/package.json", &manifest)
 	if manifest.Name != "komut-opencode" || manifest.Version != productVersion(t) || manifest.Type != "module" || manifest.Exports.Root != "./src/index.js" {
 		t.Fatalf("unexpected OpenCode manifest: %#v", manifest)
 	}
@@ -142,11 +135,7 @@ func TestOpenCodePackage(t *testing.T) {
 		t.Fatalf("unexpected OpenCode plugin dependency: %#v", manifest.Dependencies)
 	}
 
-	data, err := os.ReadFile("plugins/opencode/src/index.js")
-	if err != nil {
-		t.Fatal(err)
-	}
-	source := string(data)
+	source := string(readRepoFile(t, "src/adapters/opencode/src/index.js"))
 	for _, required := range []string{
 		`ctx.command.transform`,
 		`draft.add({`,
@@ -178,10 +167,7 @@ func TestOpenCodePackage(t *testing.T) {
 
 func productVersion(t *testing.T) string {
 	t.Helper()
-	data, err := os.ReadFile("internal/komut/version.go")
-	if err != nil {
-		t.Fatal(err)
-	}
+	data := readRepoFile(t, "src/internal/komut/version.go")
 	match := regexp.MustCompile(`const Version = "([^"]+)"`).FindSubmatch(data)
 	if len(match) != 2 {
 		t.Fatal("cannot read product version")
@@ -214,11 +200,21 @@ func assertMarketplaceEntry(t *testing.T, path, pluginPath string) {
 
 func readJSON(t *testing.T, path string, dst any) {
 	t.Helper()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	data := readRepoFile(t, path)
 	if err := json.Unmarshal(data, dst); err != nil {
 		t.Fatalf("parse %s: %v", path, err)
 	}
+}
+
+func readRepoFile(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(repoPath(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
+
+func repoPath(path string) string {
+	return filepath.Join("..", filepath.FromSlash(path))
 }

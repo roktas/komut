@@ -10,7 +10,7 @@ func TestClaudeExpansionHookIsScoped(t *testing.T) {
 			} `json:"UserPromptExpansion"`
 		} `json:"hooks"`
 	}
-	readJSON(t, "plugins/claude/hooks/hooks.json", &config)
+	readJSON(t, "src/adapters/claude/hooks/hooks.json", &config)
 
 	groups := config.Hooks.UserPromptExpansion
 	if len(groups) != 1 {

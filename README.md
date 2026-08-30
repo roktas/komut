@@ -255,20 +255,26 @@ require Go.
 Run the core checks with:
 
 ```sh
-go test -race ./...
-go vet ./...
+go -C src test -race ./...
+go -C src vet ./...
+```
+
+Run repository-level product and integration tests with:
+
+```sh
+go -C tests test ./...
 ```
 
 Build all self-contained host packages with:
 
 ```sh
-sh scripts/build-dist.sh ./dist
+src/dist/build ./dist
 ```
 
 On Linux, smoke-test generated packages with:
 
 ```sh
-sh scripts/smoke-dist.sh ./dist
+src/dist/smoke ./dist
 ```
 
 CI also tests the Windows launcher and Claude hook wrapper on a native Windows

@@ -4,16 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "*.go"
       - ".agents/plugins/**"
       - ".claude-plugin/**"
       - "bin/**"
-      - "cmd/**"
-      - "internal/**"
-      - "plugins/**"
-      - "scripts/**"
-      - "go.mod"
-      - "go.sum"
+      - "src/**"
+      - "tests/**"
       - ".github/workflows/dist.yml"
   workflow_dispatch:
 
@@ -32,17 +27,19 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version-file: src/go.mod
           cache: false
 
       - name: Test Windows launchers
         shell: pwsh
         run: |
-          go test ./...
-          go vet ./...
+          go -C src test ./...
+          go -C src vet ./...
+          go -C tests test ./...
+          go -C tests vet ./...
 
           New-Item -ItemType Directory -Force -Path "libexec/x/windows-amd64" | Out-Null
-          go build -trimpath -ldflags="-s -w" -o "libexec/x/windows-amd64/x.exe" ./cmd/x
+          go -C src build -trimpath -ldflags="-s -w" -o "$env:GITHUB_WORKSPACE\libexec\x\windows-amd64\x.exe" ./cmd/x
 
           $testHome = Join-Path $env:RUNNER_TEMP "komut-home"
           $project = Join-Path $testHome "project"
@@ -79,7 +76,7 @@ jobs:
 
           $env:CLAUDE_PLUGIN_ROOT = $env:GITHUB_WORKSPACE
           $payload = @{ prompt = '$x hello world'; cwd = $project } | ConvertTo-Json -Compress
-          $hookOutput = $payload | & "$env:GITHUB_WORKSPACE\plugins\claude\hooks\run.cmd"
+          $hookOutput = $payload | & "$env:GITHUB_WORKSPACE\src\adapters\claude\hooks\run.cmd"
           $hookStatus = $LASTEXITCODE
           if ($hookStatus -ne 0) {
             throw "Claude run.cmd exited with status $hookStatus"
@@ -100,26 +97,28 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version-file: go.mod
+          go-version-file: src/go.mod
           cache: false
 
       - name: Test
         run: |
-          go test -race ./...
-          go vet ./...
-          unformatted=$(gofmt -l cmd internal *.go)
+          go -C src test -race ./...
+          go -C src vet ./...
+          go -C tests test -race ./...
+          go -C tests vet ./...
+          unformatted=$(gofmt -l src/cmd src/internal tests)
           if [ -n "$unformatted" ]; then
                   printf 'gofmt required:\n%s\n' "$unformatted" >&2
                   exit 1
           fi
-          sh -n bin/x plugins/claude/hooks/run.cmd scripts/build-dist.sh scripts/smoke-dist.sh
-          node --check plugins/opencode/src/index.js
+          sh -n bin/x src/adapters/claude/hooks/run.cmd src/dist/build src/dist/smoke
+          node --check src/adapters/opencode/src/index.js
 
       - name: Build distribution
-        run: sh scripts/build-dist.sh "$RUNNER_TEMP/komut-dist"
+        run: src/dist/build "$RUNNER_TEMP/komut-dist"
 
       - name: Smoke test distribution
-        run: sh scripts/smoke-dist.sh "$RUNNER_TEMP/komut-dist"
+        run: src/dist/smoke "$RUNNER_TEMP/komut-dist"
 
       - name: Publish dist branch
         run: |

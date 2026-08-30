@@ -15,13 +15,20 @@ Keep one source of truth for Komut semantics.
   prototype unless explicitly requested.
 - Prefer deleting obsolete design remnants over preserving them as legacy notes.
 
+## Layout
+
+- `src/` contains implementation source; host adapters are in `src/adapters/`.
+- `tests/` contains repository-level product and integration tests.
+- `src/dist/` contains the tools that generate and smoke-test the `dist` branch.
+- `bin/` contains the public platform launchers.
+
 ## Go
 
 Follow the current guidance in
 [JetBrains/go-modern-guidelines](https://github.com/JetBrains/go-modern-guidelines)
 when writing or reviewing Go code.
 
-- Detect the project's Go version from `go.mod`.
+- Detect the project's Go version from `src/go.mod`.
 - Use language and standard-library features available in that version.
 - Prefer modern Go idioms over legacy equivalents.
 - Do not raise the minimum Go version only to use a newer idiom.
@@ -66,7 +73,7 @@ esac
 
 ## Host adapters
 
-Each host has its own subtree under `plugins/`.
+Each host has its own source subtree under `src/adapters/`.
 
 - Keep each installable host plugin self-contained.
 - Use the host's native extension mechanism where possible.
