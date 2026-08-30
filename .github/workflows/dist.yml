@@ -58,12 +58,22 @@ jobs:
           } finally {
             Pop-Location
           }
-
           if ($status -ne 0) {
             throw "x.cmd exited with status $status"
           }
           if (($output -join "`n") -ne "Hello world") {
             throw "unexpected x.cmd output: $output"
+          }
+
+          Push-Location $project
+          try {
+            $null = & "$env:GITHUB_WORKSPACE\bin\x.cmd" '$x missing' 2>$null
+            $errorStatus = $LASTEXITCODE
+          } finally {
+            Pop-Location
+          }
+          if ($errorStatus -ne 2) {
+            throw "x.cmd did not propagate dispatcher status 2: $errorStatus"
           }
 
           $env:CLAUDE_PLUGIN_ROOT = $env:GITHUB_WORKSPACE
