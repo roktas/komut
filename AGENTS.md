@@ -48,6 +48,21 @@ Keep the dispatcher deterministic and side-effect-light.
 - They select the packaged Go executable and transfer control to it.
 - They must not parse `$x` syntax or implement command semantics.
 - Keep them minimal and dependency-free for their target platform.
+- Keep `bin/x` POSIX `sh`; do not introduce Bash-only syntax.
+- For compact `case` arms, align each pattern with `case` and `esac`. Indent only
+  the body of a multi-line arm.
+
+Preferred form:
+
+```sh
+case "$os:$arch" in
+Darwin:arm64)  target=darwin-arm64 ;;
+Darwin:x86_64) target=darwin-amd64 ;;
+*)
+        ...
+        ;;
+esac
+```
 
 ## Host adapters
 
