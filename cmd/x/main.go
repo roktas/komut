@@ -12,6 +12,13 @@ import (
 
 const hookPreamble = "Komut expanded the user's `$x` invocation. Treat the content below as the user's instruction for this turn. Do not interpret the literal `$x` invocation separately.\n\n"
 
+type hookOutput struct {
+	HookSpecificOutput struct {
+		HookEventName    string `json:"hookEventName"`
+		AdditionalContext string `json:"additionalContext"`
+	} `json:"hookSpecificOutput"`
+}
+
 func main() {
 	if err := run(os.Args[1:], os.Stdin, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "x: %v\n", err)
@@ -52,11 +59,11 @@ func runHook(stdin io.Reader, stdout io.Writer) error {
 	if err := dispatch(input.Prompt, input.CWD, &rendered); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(stdout, hookPreamble); err != nil {
-		return err
-	}
-	_, err := io.WriteString(stdout, rendered.String())
-	return err
+
+	var output hookOutput
+	output.HookSpecificOutput.HookEventName = "UserPromptSubmit"
+	output.HookSpecificOutput.AdditionalContext = hookPreamble + rendered.String()
+	return json.NewEncoder(stdout).Encode(output)
 }
 
 func dispatch(input, cwd string, stdout io.Writer) error {

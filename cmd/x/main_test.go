@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,8 +73,16 @@ func TestHookDispatchesUsingPayloadCWD(t *testing.T) {
 	if err := run([]string{"--hook"}, strings.NewReader(input), &out); err != nil {
 		t.Fatal(err)
 	}
-	if want := hookPreamble + "Hello world"; out.String() != want {
-		t.Fatalf("output = %q, want %q", out.String(), want)
+
+	var got hookOutput
+	if err := json.Unmarshal([]byte(out.String()), &got); err != nil {
+		t.Fatalf("parse hook output: %v", err)
+	}
+	if got.HookSpecificOutput.HookEventName != "UserPromptSubmit" {
+		t.Fatalf("hook event = %q", got.HookSpecificOutput.HookEventName)
+	}
+	if want := hookPreamble + "Hello world"; got.HookSpecificOutput.AdditionalContext != want {
+		t.Fatalf("additional context = %q, want %q", got.HookSpecificOutput.AdditionalContext, want)
 	}
 }
 
