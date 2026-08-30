@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -23,7 +24,7 @@ func TestParseSpecialTokensNeedTokenBoundaries(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Parse(%q): %v", tt.input, err)
 		}
-		if len(got.Commands) != 1 || got.Commands[0].Name != tt.name || !equalStrings(got.Commands[0].Args, tt.args) {
+		if len(got.Commands) != 1 || got.Commands[0].Name != tt.name || !slices.Equal(got.Commands[0].Args, tt.args) {
 			t.Fatalf("Parse(%q) = %#v", tt.input, got)
 		}
 	}
@@ -99,22 +100,10 @@ func FuzzRenderNeverPanics(f *testing.F) {
 	})
 }
 
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func TestErrorTypeIsDiscoverable(t *testing.T) {
 	_, err := Parse("$x ../bad")
-	var xerr *Error
-	if !errors.As(err, &xerr) || xerr.Code != ErrInvalidCommand {
+	xerr, ok := errors.AsType[*Error](err)
+	if !ok || xerr.Code != ErrInvalidCommand {
 		t.Fatalf("error = %#v", err)
 	}
 }
@@ -151,8 +140,8 @@ func TestReadValidFileRejectsIdentityChange(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = readValidFile(second, "foo", expected, ErrUnsafeProjectPath)
-	var xerr *Error
-	if !errors.As(err, &xerr) || xerr.Code != ErrUnsafeProjectPath {
+	xerr, ok := errors.AsType[*Error](err)
+	if !ok || xerr.Code != ErrUnsafeProjectPath {
 		t.Fatalf("error = %#v", err)
 	}
 }

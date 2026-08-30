@@ -3,6 +3,7 @@ package komut
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -31,7 +32,7 @@ func TestParseQuotedSpecialTokensAreArguments(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"+", "--", "a + b"}
-	if !reflect.DeepEqual(got.Commands[0].Args, want) {
+	if !slices.Equal(got.Commands[0].Args, want) {
 		t.Fatalf("args = %#v, want %#v", got.Commands[0].Args, want)
 	}
 }
@@ -42,7 +43,7 @@ func TestParseSpecialSyntaxNeedsTokenBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"C++", "a+b", "--flag"}
-	if !reflect.DeepEqual(got.Commands[0].Args, want) {
+	if !slices.Equal(got.Commands[0].Args, want) {
 		t.Fatalf("args = %#v, want %#v", got.Commands[0].Args, want)
 	}
 }
@@ -66,7 +67,7 @@ func TestParseQuotesAndEscapes(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"a b", "c d", `quote: "x"`, `path\name`}
-	if !reflect.DeepEqual(got.Commands[0].Args, want) {
+	if !slices.Equal(got.Commands[0].Args, want) {
 		t.Fatalf("args = %#v, want %#v", got.Commands[0].Args, want)
 	}
 }
@@ -121,8 +122,8 @@ func assertErrorCode(t *testing.T, err error, want ErrorCode) {
 	if err == nil {
 		t.Fatalf("error = nil, want %s", want)
 	}
-	var e *Error
-	if !errors.As(err, &e) {
+	e, ok := errors.AsType[*Error](err)
+	if !ok {
 		t.Fatalf("error type = %T, want *Error", err)
 	}
 	if e.Code != want {
