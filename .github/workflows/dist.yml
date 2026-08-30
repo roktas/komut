@@ -34,7 +34,7 @@ jobs:
           go-version-file: go.mod
           cache: false
 
-      - name: Test Windows launcher
+      - name: Test Windows launchers
         shell: pwsh
         run: |
           go test ./...
@@ -43,13 +43,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path "libexec/x/windows-amd64" | Out-Null
           go build -trimpath -ldflags="-s -w" -o "libexec/x/windows-amd64/x.exe" ./cmd/x
 
-          $home = Join-Path $env:RUNNER_TEMP "komut-home"
-          $project = Join-Path $home "project"
+          $testHome = Join-Path $env:RUNNER_TEMP "komut-home"
+          $project = Join-Path $testHome "project"
           $commands = Join-Path $project ".agents/commands"
           New-Item -ItemType Directory -Force -Path $commands | Out-Null
           Set-Content -Path (Join-Path $commands "hello.md") -Value 'Hello $1' -NoNewline
-          $env:HOME = $home
-          $env:USERPROFILE = $home
+          $env:HOME = $testHome
+          $env:USERPROFILE = $testHome
 
           Push-Location $project
           try {
@@ -64,6 +64,21 @@ jobs:
           }
           if (($output -join "`n") -ne "Hello world") {
             throw "unexpected x.cmd output: $output"
+          }
+
+          $env:CLAUDE_PLUGIN_ROOT = $env:GITHUB_WORKSPACE
+          $payload = @{ prompt = '$x hello world'; cwd = $project } | ConvertTo-Json -Compress
+          $hookOutput = $payload | & "$env:GITHUB_WORKSPACE\plugins\claude\hooks\run.cmd"
+          $hookStatus = $LASTEXITCODE
+          if ($hookStatus -ne 0) {
+            throw "Claude run.cmd exited with status $hookStatus"
+          }
+          $hook = ($hookOutput -join "`n") | ConvertFrom-Json
+          if ($hook.hookSpecificOutput.hookEventName -ne "UserPromptSubmit") {
+            throw "unexpected Claude hook event"
+          }
+          if ($hook.hookSpecificOutput.additionalContext -notmatch "Hello world") {
+            throw "unexpected Claude hook context"
           }
 
   publish:
