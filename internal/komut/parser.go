@@ -82,8 +82,9 @@ func (p *parser) parseCommand() (Command, error) {
 	if err != nil {
 		return Command{}, err
 	}
-	if !ValidCommandName(name) {
-		return Command{}, fail(ErrInvalidCommand, name, "invalid command name")
+	name, err = canonicalCommandName(name)
+	if err != nil {
+		return Command{}, err
 	}
 
 	command := Command{Name: name}
@@ -99,6 +100,36 @@ func (p *parser) parseCommand() (Command, error) {
 		}
 		command.Args = append(command.Args, arg)
 	}
+}
+
+func canonicalCommandName(name string) (string, error) {
+	switch name {
+	case "help", "?":
+		return builtinHelp, nil
+	}
+	if strings.HasPrefix(name, ":") {
+		if !validBuiltinName(name) {
+			return "", fail(ErrInvalidCommand, name, "invalid builtin command name")
+		}
+		return name, nil
+	}
+	if !ValidCommandName(name) {
+		return "", fail(ErrInvalidCommand, name, "invalid command name")
+	}
+	return name, nil
+}
+
+func validBuiltinName(name string) bool {
+	if len(name) < 2 || name[0] != ':' || name[1] < 'a' || name[1] > 'z' {
+		return false
+	}
+	for i := 2; i < len(name); i++ {
+		c := name[i]
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *parser) parseArgument() (string, error) {
@@ -219,7 +250,7 @@ func (p *parser) eof() bool {
 }
 
 func ValidCommandName(name string) bool {
-	if name == "" || len(name) > 64 || strings.HasPrefix(name, "/") || strings.HasSuffix(name, "/") || strings.Contains(name, "//") {
+	if name == "" || len(name) > 64 || name == "help" || strings.HasPrefix(name, "/") || strings.HasSuffix(name, "/") || strings.Contains(name, "//") {
 		return false
 	}
 
