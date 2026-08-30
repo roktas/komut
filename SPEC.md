@@ -156,8 +156,11 @@ The nearest project command tree is a scope boundary. A miss there falls directl
 to user scope; Komut does not search more distant project trees. A project command
 shadows a same-name user command. One invocation performs one project-scope walk.
 
-When a builtin needs a project target and no project command tree exists, it uses
-`<cwd>/.agents/commands` as the target that would establish project scope there.
+When a builtin needs a project target and no project command tree exists, it may
+use `<cwd>/.agents/commands` as the target that would establish project scope
+there. This target is unavailable when `cwd` is the user home because it would be
+the user command tree. Existing project path components must also pass the
+project-scope safety rules before a builtin may present that target.
 
 ## 6. Command files
 
@@ -264,8 +267,11 @@ git/commit    Create a conventional commit.
 ```
 
 If there are no application commands, help still lists builtins and explains
-where to create commands, showing absolute user and project command directories.
-If no project tree exists, the project suggestion is `<cwd>/.agents/commands`.
+where to create commands. It shows the absolute user command directory. For
+project scope, it shows the selected project directory when one exists, otherwise
+`<cwd>/.agents/commands`. When `cwd` is the user home, help must not present the
+user command tree as a project directory; it instead explains that project
+commands require a project working directory.
 
 ### 7.2 `:new`
 
@@ -280,6 +286,10 @@ Default scope is project. `--user` selects user scope; `--project` selects proje
 scope explicitly. Supplying both is invalid. `COMMAND` is optional; when present
 it must be a valid non-reserved application command name.
 
+Project scope is unavailable when `cwd` is the user home because the prospective
+project command directory would be the user command directory. In that case,
+`:new` requires `--user` or a project working directory.
+
 Examples:
 
 ```text
@@ -292,6 +302,11 @@ $x :new -- Write a command that reviews API compatibility.
 When a name is supplied, the generated prompt includes the absolute target `.md`
 path. Without a name it includes the target directory and asks the agent to agree
 a valid name with the user before writing.
+
+If no project command tree exists yet, `:new` may target
+`<cwd>/.agents/commands`. Before generating that project target, Komut checks any
+existing `.agents` and `commands` path components. A symlink or unexpected path
+type is unsafe and fails closed.
 
 The generated prompt instructs the host agent to use its normal file tools and
 communicates at least:
@@ -349,13 +364,19 @@ The selected project command must remain in the selected project command tree.
 User-scope symlinks are allowed, but the final selected target must be a readable
 regular file. Unsafe or malformed paths fail closed.
 
-`:new` computes target paths only and does not open or write them.
+`:new` computes target paths only and does not open or write them. When it would
+establish a new project command tree, it applies the project path safety rules to
+existing path components before generating the authoring prompt.
 
 ## 10. Host adapters
 
 Host adapters must not reimplement Komut grammar or resolution. `$x` is canonical
 across hosts. A host may expose a native alias when it can translate that alias to
 the same raw `$x` invocation and call the same dispatcher.
+
+An adapter must run the dispatcher with the working directory of the current
+invocation or session. Plugin installation, load, or package directories must not
+be used as command-resolution scope.
 
 Current native aliases are:
 
@@ -428,12 +449,17 @@ Tests must verify at least:
 - `$xfoo` remains invalid;
 - builtin names use the `:` namespace and cannot be composed;
 - `:new` generates project/user authoring prompts without filesystem mutation;
+- project `:new` rejects unsafe prospective path components and does not confuse
+  the user command tree with project scope at the user home;
 - `:version` reports the built product version and rejects args/lead;
 - quoting, composition, global `--`, substitutions, and missing arguments;
 - project-over-user precedence and nearest-project scope boundaries;
 - project symlink rejection and user-symlink support;
 - YAML metadata stripping and description fallback behavior;
-- help discovery, sorting, duplicate precedence, and no-command path guidance;
+- help discovery, sorting, duplicate precedence, and no-command path guidance,
+  including the user-home case;
 - Claude `/komut:x` and OpenCode `/x` native aliases use central dispatcher
   semantics, including argument-free help;
+- host adapters pass the current invocation/session working directory to the
+  dispatcher rather than a plugin installation or load directory;
 - launchers and generated host packages preserve the same behavior.
