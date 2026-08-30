@@ -2,6 +2,7 @@ package komut
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,16 +20,12 @@ func NewResolver(cwd, home string) (*Resolver, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	userCommands := filepath.Join(home, ".agents", "commands")
-	return &Resolver{projectCommands: projectCommands, userCommands: userCommands}, nil
+	return &Resolver{projectCommands: projectCommands, userCommands: filepath.Join(home, ".agents", "commands")}, nil
 }
-
 func (r *Resolver) Read(name string) (string, error) {
 	if !ValidCommandName(name) {
 		return "", fail(ErrInvalidCommand, name, "invalid command name")
 	}
-
 	if r.projectCommands != "" {
 		content, found, err := readProjectCommand(r.projectCommands, name)
 		if err != nil {
@@ -38,7 +35,6 @@ func (r *Resolver) Read(name string) (string, error) {
 			return content, nil
 		}
 	}
-
 	content, found, err := readUserCommand(r.userCommands, name)
 	if err != nil {
 		return "", err
@@ -48,7 +44,6 @@ func (r *Resolver) Read(name string) (string, error) {
 	}
 	return content, nil
 }
-
 func findProjectCommands(cwd, home string) (string, error) {
 	current, err := filepath.Abs(cwd)
 	if err != nil {
@@ -58,11 +53,9 @@ func findProjectCommands(cwd, home string) (string, error) {
 	if err != nil {
 		return "", fail(ErrInvalidCommandFile, "", fmt.Sprintf("cannot resolve home directory: %v", err))
 	}
-
 	for !samePath(current, home) {
 		agents := filepath.Join(current, ".agents")
 		commands := filepath.Join(agents, "commands")
-
 		commandsInfo, err := os.Lstat(commands)
 		if err == nil {
 			agentsInfo, agentsErr := os.Lstat(agents)
@@ -75,23 +68,18 @@ func findProjectCommands(cwd, home string) (string, error) {
 			return commands, nil
 		}
 		if !os.IsNotExist(err) {
-			// ENOTDIR commonly means .agents exists but cannot contain commands;
-			// it is not a command-tree boundary.
 			if !pathHasNonDirectoryParent(commands) {
 				return "", fail(ErrUnsafeProjectPath, "", fmt.Sprintf("cannot inspect project path %s: %v", commands, err))
 			}
 		}
-
 		parent := filepath.Dir(current)
 		if samePath(parent, current) {
 			break
 		}
 		current = parent
 	}
-
 	return "", nil
 }
-
 func readProjectCommand(root, name string) (string, bool, error) {
 	parts := strings.Split(name, "/")
 	current := root
@@ -108,7 +96,6 @@ func readProjectCommand(root, name string) (string, bool, error) {
 			return "", false, fail(ErrUnsafeProjectPath, name, "unsafe project command path")
 		}
 	}
-
 	path := filepath.Join(current, parts[len(parts)-1]+".md")
 	info, err := os.Lstat(path)
 	if os.IsNotExist(err) {
@@ -120,14 +107,12 @@ func readProjectCommand(root, name string) (string, bool, error) {
 	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
 		return "", false, fail(ErrUnsafeProjectPath, name, "unsafe project command file")
 	}
-
-	content, err := readValidFile(path, name)
+	content, err := readValidFile(path, name, info, ErrUnsafeProjectPath)
 	if err != nil {
 		return "", false, err
 	}
 	return content, true, nil
 }
-
 func readUserCommand(root, name string) (string, bool, error) {
 	path := filepath.Join(root, filepath.FromSlash(name)+".md")
 	info, err := os.Stat(path)
@@ -140,16 +125,28 @@ func readUserCommand(root, name string) (string, bool, error) {
 	if !info.Mode().IsRegular() {
 		return "", false, fail(ErrInvalidCommandFile, name, "command file is not a regular file")
 	}
-
-	content, err := readValidFile(path, name)
+	content, err := readValidFile(path, name, info, ErrInvalidCommandFile)
 	if err != nil {
 		return "", false, err
 	}
 	return content, true, nil
 }
+func readValidFile(path, name string, expected os.FileInfo, changedCode ErrorCode) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", fail(ErrInvalidCommandFile, name, fmt.Sprintf("cannot open command file: %v", err))
+	}
+	defer file.Close()
 
-func readValidFile(path, name string) (string, error) {
-	data, err := os.ReadFile(path)
+	opened, err := file.Stat()
+	if err != nil {
+		return "", fail(ErrInvalidCommandFile, name, fmt.Sprintf("cannot inspect opened command file: %v", err))
+	}
+	if !opened.Mode().IsRegular() || !os.SameFile(expected, opened) {
+		return "", fail(changedCode, name, "command file changed while opening")
+	}
+
+	data, err := io.ReadAll(file)
 	if err != nil {
 		return "", fail(ErrInvalidCommandFile, name, fmt.Sprintf("cannot read command file: %v", err))
 	}
@@ -161,7 +158,6 @@ func readValidFile(path, name string) (string, error) {
 	}
 	return string(data), nil
 }
-
 func samePath(a, b string) bool {
 	a = filepath.Clean(a)
 	b = filepath.Clean(b)
@@ -170,7 +166,6 @@ func samePath(a, b string) bool {
 	}
 	return a == b
 }
-
 func pathHasNonDirectoryParent(path string) bool {
 	for {
 		parent := filepath.Dir(path)
