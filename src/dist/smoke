@@ -22,7 +22,7 @@ test -f "$dist/plugins/antigravity/skills/x/SKILL.md"
 for plugin in codex claude opencode antigravity; do
         output=$(
                 cd "$project"
-                HOME="$home" "$dist/plugins/$plugin/bin/x" '$x hello world'
+                HOME="$home" "$dist/plugins/$plugin/bin/x" "\$x hello world"
         )
         if [ "$output" != 'Hello world' ]; then
                 echo "smoke: $plugin launcher returned: $output" >&2
@@ -31,7 +31,7 @@ for plugin in codex claude opencode antigravity; do
 
         help=$(
                 cd "$project"
-                HOME="$home" "$dist/plugins/$plugin/bin/x" '$x'
+                HOME="$home" "$dist/plugins/$plugin/bin/x" "\$x"
         )
         printf '%s' "$help" | grep -F ':new' >/dev/null
         printf '%s' "$help" | grep -F ':version' >/dev/null
@@ -40,7 +40,7 @@ for plugin in codex claude opencode antigravity; do
 
         version=$(
                 cd "$project"
-                HOME="$home" "$dist/plugins/$plugin/bin/x" '$x :version'
+                HOME="$home" "$dist/plugins/$plugin/bin/x" "\$x :version"
         )
         if [ "$version" != 'Komut 0.3.0' ]; then
                 echo "smoke: $plugin version returned: $version" >&2
@@ -48,7 +48,7 @@ for plugin in codex claude opencode antigravity; do
         fi
 done
 
-payload=$(printf '{"prompt":"$x hello world","cwd":"%s"}' "$project")
+payload=$(printf '{"prompt":"%s","cwd":"%s"}' "\$x hello world" "$project")
 codex_hook=$(printf '%s' "$payload" | HOME="$home" "$dist/plugins/codex/bin/x" --hook)
 claude_hook=$(printf '%s' "$payload" | HOME="$home" CLAUDE_PLUGIN_ROOT="$dist/plugins/claude" "$dist/plugins/claude/hooks/run.cmd")
 
