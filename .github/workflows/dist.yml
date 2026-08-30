@@ -6,6 +6,7 @@ on:
     paths:
       - "*.go"
       - ".agents/plugins/**"
+      - ".claude-plugin/**"
       - "bin/**"
       - "cmd/**"
       - "internal/**"
@@ -37,7 +38,7 @@ jobs:
         run: |
           go test -race ./...
           go vet ./...
-          sh -n bin/x scripts/build-dist.sh
+          sh -n bin/x plugins/claude/hooks/run.cmd scripts/build-dist.sh
 
       - name: Build distribution
         run: sh scripts/build-dist.sh "$RUNNER_TEMP/komut-dist"

@@ -6,26 +6,17 @@ import { Plugin } from "@opencode-ai/plugin";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
-function binaryPath() {
-        const platform = process.platform;
-        const arch = process.arch;
-
-        switch (`${platform}:${arch}`) {
-        case "darwin:arm64": return join(root, "libexec", "x", "darwin-arm64", "x");
-        case "darwin:x64": return join(root, "libexec", "x", "darwin-amd64", "x");
-        case "linux:arm64": return join(root, "libexec", "x", "linux-arm64", "x");
-        case "linux:x64": return join(root, "libexec", "x", "linux-amd64", "x");
-        case "win32:x64": return join(root, "libexec", "x", "windows-amd64", "x.exe");
-        default: throw new Error(`komut: unsupported platform: ${platform} ${arch}`);
-        }
+function launcherPath() {
+        return join(root, "bin", process.platform === "win32" ? "x.cmd" : "x");
 }
 
 function expand(prompt, cwd) {
-        const result = spawnSync(binaryPath(), [], {
+        const result = spawnSync(launcherPath(), [], {
                 cwd,
                 input: prompt,
                 encoding: "utf8",
                 windowsHide: true,
+                shell: process.platform === "win32",
         });
 
         if (result.error) throw result.error;

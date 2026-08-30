@@ -1,0 +1,7 @@
+{
+  "name": "komut",
+  "description": "Expand explicit $x commands from user or project Markdown prompt files.",
+  "author": {
+    "name": "Recai Oktaş"
+  }
+}

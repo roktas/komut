@@ -6,15 +6,15 @@ out=${1:-"$root/dist"}
 
 rm -rf "$out"
 
-for plugin in codex opencode; do
+for plugin in codex claude opencode; do
         mkdir -p "$out/plugins/$plugin/bin" "$out/plugins/$plugin/libexec/x"
+        cp -R "$root/plugins/$plugin/." "$out/plugins/$plugin/"
         cp "$root/bin/x" "$out/plugins/$plugin/bin/x"
         cp "$root/bin/x.cmd" "$out/plugins/$plugin/bin/x.cmd"
         chmod 0755 "$out/plugins/$plugin/bin/x"
 done
 
-cp -R "$root/plugins/codex/." "$out/plugins/codex/"
-cp -R "$root/plugins/opencode/." "$out/plugins/opencode/"
+chmod 0755 "$out/plugins/claude/hooks/run.cmd"
 
 build() {
         goos=$1
@@ -31,7 +31,7 @@ build() {
                         -o "$temp" ./cmd/x
         )
 
-        for plugin in codex opencode; do
+        for plugin in codex claude opencode; do
                 dir="$out/plugins/$plugin/libexec/x/$target"
                 mkdir -p "$dir"
                 cp "$temp" "$dir/$name"

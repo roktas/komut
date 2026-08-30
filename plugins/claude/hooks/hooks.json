@@ -1,0 +1,16 @@
+{
+  "description": "Expand explicit $x commands before Claude processes the turn.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run.cmd\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
