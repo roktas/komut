@@ -3,6 +3,7 @@ package komut_test
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -60,6 +61,41 @@ func TestCodexMarketplaceTargetsDistBranch(t *testing.T) {
 	plugin := marketplace.Plugins[0]
 	if plugin.Name != "komut" || plugin.Source.Kind != "git-subdir" || plugin.Source.URL != "roktas/komut" || plugin.Source.Path != "plugins/codex" || plugin.Source.Ref != "dist" {
 		t.Fatalf("unexpected marketplace entry: %#v", plugin)
+	}
+}
+
+func TestOpenCodePackage(t *testing.T) {
+	var manifest struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Type    string `json:"type"`
+		Exports struct {
+			Root string `json:"."`
+		} `json:"exports"`
+		Dependencies map[string]string `json:"dependencies"`
+	}
+	readJSON(t, "plugins/opencode/package.json", &manifest)
+	if manifest.Name != "komut-opencode" || manifest.Version != "0.1.0" || manifest.Type != "module" || manifest.Exports.Root != "./src/index.js" {
+		t.Fatalf("unexpected OpenCode manifest: %#v", manifest)
+	}
+	if manifest.Dependencies["@opencode-ai/plugin"] != "beta" {
+		t.Fatalf("unexpected OpenCode plugin dependency: %#v", manifest.Dependencies)
+	}
+
+	data, err := os.ReadFile("plugins/opencode/src/index.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	for _, required := range []string{
+		`ctx.session.hook("prompt"`,
+		`ctx.session.get({ sessionID: event.sessionID })`,
+		`session.location.directory`,
+		`spawnSync(binaryPath()`,
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("OpenCode adapter is missing %q", required)
+		}
 	}
 }
 
