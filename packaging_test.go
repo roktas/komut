@@ -149,10 +149,11 @@ func TestOpenCodePackage(t *testing.T) {
 	source := string(data)
 	for _, required := range []string{
 		`ctx.command.transform`,
+		`draft.add({`,
 		`name: "x"`,
+		`text: invocation(prompt.text),`,
 		`ctx.session.hook("prompt"`,
-		`ctx.session.get({ sessionID: event.sessionID })`,
-		`session.directory`,
+		`event.prompt.text = expand(event.prompt.text, ctx.location.directory);`,
 		`join(root, "bin", process.platform === "win32" ? "x.cmd" : "x")`,
 		`spawnSync(launcherPath()`,
 		`/^\s*\$x(?:\s|$)/u`,
@@ -161,8 +162,17 @@ func TestOpenCodePackage(t *testing.T) {
 			t.Fatalf("OpenCode adapter is missing %q", required)
 		}
 	}
-	if strings.Contains(source, "session.location") || strings.Contains(source, "libexec") || strings.Contains(source, "process.arch") {
-		t.Fatal("OpenCode adapter must use the current session directory and delegate architecture selection to the launcher")
+	for _, forbidden := range []string{
+		`ctx.session.get`,
+		`session.directory`,
+		`session.location`,
+		`text: expand(invocation(prompt.text)`,
+		`libexec`,
+		`process.arch`,
+	} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("OpenCode adapter contains stale or duplicated logic %q", forbidden)
+		}
 	}
 }
 

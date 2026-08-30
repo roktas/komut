@@ -40,11 +40,10 @@ export default Plugin.define({
                                 name: "x",
                                 description: "Run a Komut command",
                                 execute: async ({ sessionID, prompt, delivery }) => {
-                                        const session = await ctx.session.get({ sessionID });
                                         await ctx.session.prompt({
                                                 ...prompt,
                                                 sessionID,
-                                                text: expand(invocation(prompt.text), session.directory),
+                                                text: invocation(prompt.text),
                                                 delivery,
                                         });
                                 },
@@ -54,8 +53,7 @@ export default Plugin.define({
                 await ctx.session.hook("prompt", async (event) => {
                         if (!/^\s*\$x(?:\s|$)/u.test(event.prompt.text)) return;
 
-                        const session = await ctx.session.get({ sessionID: event.sessionID });
-                        event.prompt.text = expand(event.prompt.text, session.directory);
+                        event.prompt.text = expand(event.prompt.text, ctx.location.directory);
                 });
         },
 });
