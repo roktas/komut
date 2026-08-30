@@ -1,0 +1,6 @@
+{
+  "name": "komut",
+  "version": "0.1.0",
+  "description": "Namespaced prompt command dispatcher for Codex",
+  "keywords": ["commands", "dispatcher", "prompts"]
+}
