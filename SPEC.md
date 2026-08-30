@@ -349,6 +349,7 @@ komut/
 ├── cmd/
 │   └── x/
 ├── internal/
+│   └── komut/
 ├── bin/
 │   ├── x
 │   └── x.cmd
@@ -356,7 +357,7 @@ komut/
 │   ├── codex/
 │   ├── claude/
 │   └── opencode/
-├── tests/
+├── scripts/
 ├── AGENTS.md
 ├── SPEC.md
 └── README.md
