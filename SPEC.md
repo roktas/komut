@@ -45,13 +45,13 @@ The logical grammar is:
 invocation = "$x", ws, command, { ws, "+", ws, command },
              [ ws, "--", [ ws, lead ] ] ;
 
-command     = builtin | application ;
-builtin     = builtin_name, { ws, argument } ;
-application = name, { ws, argument } ;
+command      = builtin | application ;
+builtin      = builtin_name, { ws, argument } ;
+application  = name, { ws, argument } ;
 builtin_name = ":", builtin_segment ;
-name        = segment, { "/", segment } ;
-argument    = bare | single_quoted | double_quoted ;
-lead        = <remaining input> ;
+name         = segment, { "/", segment } ;
+argument     = bare | single_quoted | double_quoted ;
+lead         = <remaining input> ;
 ```
 
 Leading whitespace before `$x` is allowed. `$x` must be followed by whitespace.
@@ -102,7 +102,7 @@ quotes, or template substitutions. A non-empty lead is placed before rendered
 application command content.
 
 A builtin may define its own meaning for lead text. `:help` forbids lead text.
-`:create` uses lead text as optional authoring intent for the command to create.
+`:new` uses lead text as optional authoring intent for the command to create.
 
 ### 3.3 Arguments and quoting
 
@@ -262,8 +262,8 @@ Markdown command file and cannot be overridden by user or project files.
 The builtin registry initially contains:
 
 ```text
-:help     List available builtins and application commands.
-:create   Generate an agent prompt for authoring a command.
+:help  List available builtins and application commands.
+:new   Generate an agent prompt for authoring a command.
 ```
 
 ### 7.1 `:help`
@@ -308,8 +308,8 @@ is:
 ```text
 Builtins:
 
-:help    List available commands. Aliases: help, ?
-:create  Create a command with the agent.
+:help  List available commands. Aliases: help, ?
+:new   Create a command with the agent.
 
 Commands:
 
@@ -327,15 +327,15 @@ explains where to create application commands. It must show absolute paths for:
 If a nearest project command tree already exists, that tree is the project path.
 If no project command tree exists, help uses `<cwd>/.agents/commands`.
 
-### 7.2 `:create`
+### 7.2 `:new`
 
-`:create` is a prompt generator. It does not create directories, write files,
+`:new` is a prompt generator. It does not create directories, write files,
 launch an editor, or otherwise mutate the filesystem.
 
 Syntax:
 
 ```text
-$x :create [--user | --project] [COMMAND] [ -- LEAD ]
+$x :new [--user | --project] [COMMAND] [ -- LEAD ]
 ```
 
 The default scope is project. `--user` selects the user command tree;
@@ -348,14 +348,14 @@ and must not be the reserved name `help`.
 Examples:
 
 ```text
-$x :create code/review
-$x :create --user text/concise
-$x :create git/commit -- Create a Conventional Commits helper.
-$x :create -- Write a command that reviews API compatibility.
+$x :new code/review
+$x :new --user text/concise
+$x :new git/commit -- Create a Conventional Commits helper.
+$x :new -- Write a command that reviews API compatibility.
 ```
 
-When a command name is present, `:create` computes its absolute target `.md`
-path. For project scope it uses the nearest existing project command tree, or
+When a command name is present, `:new` computes its absolute target `.md` path.
+For project scope it uses the nearest existing project command tree, or
 `<cwd>/.agents/commands` when no project tree exists. For user scope it uses
 `<home>/.agents/commands`.
 
@@ -392,7 +392,7 @@ Komut otherwise preserves prompt body content. It does not interpret or merge
 instructions semantically.
 
 Builtin output is defined by the builtin itself. A prompt-generating builtin such
-as `:create` returns one agent prompt directly and does not participate in
+as `:new` returns one agent prompt directly and does not participate in
 application command composition.
 
 ## 9. Filesystem safety
@@ -415,7 +415,7 @@ to a readable regular file.
 
 Malformed or unsafe ordinary command paths fail closed.
 
-`:create` only computes target paths and returns prompt text. It does not open or
+`:new` only computes target paths and returns prompt text. It does not open or
 write the target file.
 
 ## 10. Dispatcher and host adapters
@@ -515,7 +515,7 @@ small and predictable. It must:
 commands is its purpose. It must not search unrelated directories or more distant
 project scopes.
 
-`:create` must not enumerate command trees. It may perform normal project-scope
+`:new` must not enumerate command trees. It may perform normal project-scope
 discovery to compute the target directory.
 
 ## 14. Errors
@@ -559,10 +559,10 @@ Tests must verify at least:
 - project symlink paths are not followed during help enumeration;
 - user-scope symlink commands can be discovered without traversal loops;
 - no-command help output shows absolute user and project command directories;
-- `:create` defaults to project scope and supports `--user` and `--project`;
-- `:create` validates an optional command name and rejects `help`;
-- `:create` returns an authoring prompt without writing files;
-- `:create` carries optional lead text into that prompt;
+- `:new` defaults to project scope and supports `--user` and `--project`;
+- `:new` validates an optional command name and rejects `help`;
+- `:new` returns an authoring prompt without writing files;
+- `:new` carries optional lead text into that prompt;
 - ordinary dispatch still performs no command-directory enumeration;
 - launchers and host adapters preserve dispatcher semantics across hosts;
 - host-native aliases, when provided, produce the same dispatcher result as the
