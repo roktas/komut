@@ -60,11 +60,12 @@ func (r *Resolver) Help() (string, error) {
 }
 
 func writeBuiltinHelp(b *strings.Builder) {
+	registry := builtinRegistry()
 	width := 0
-	for _, builtin := range builtinRegistry {
+	for _, builtin := range registry {
 		width = max(width, len(builtin.Name))
 	}
-	for _, builtin := range builtinRegistry {
+	for _, builtin := range registry {
 		b.WriteString(builtin.Name)
 		b.WriteString(strings.Repeat(" ", width-len(builtin.Name)+2))
 		b.WriteString(builtin.Description)

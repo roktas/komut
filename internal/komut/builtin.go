@@ -12,38 +12,34 @@ const (
 	builtinVersion = ":version"
 )
 
-type builtinKind uint8
-
-const (
-	builtinKindHelp builtinKind = iota + 1
-	builtinKindNew
-	builtinKindVersion
-)
+type builtinHandler func(Command, Invocation, *Resolver) (string, error)
 
 type builtinSpec struct {
-	Kind        builtinKind
 	Name        string
 	Description string
 	Aliases     []string
+	Handler     builtinHandler
 }
 
-var builtinRegistry = [...]builtinSpec{
-	{
-		Kind:        builtinKindHelp,
-		Name:        builtinHelp,
-		Description: "List available commands.",
-		Aliases:     []string{"help", "?"},
-	},
-	{
-		Kind:        builtinKindNew,
-		Name:        builtinNew,
-		Description: "Create a command with the agent.",
-	},
-	{
-		Kind:        builtinKindVersion,
-		Name:        builtinVersion,
-		Description: "Show the installed Komut version.",
-	},
+func builtinRegistry() [...]builtinSpec {
+	return [...]builtinSpec{
+		{
+			Name:        builtinHelp,
+			Description: "List available commands.",
+			Aliases:     []string{"help", "?"},
+			Handler:     runHelpBuiltin,
+		},
+		{
+			Name:        builtinNew,
+			Description: "Create a command with the agent.",
+			Handler:     runNewBuiltin,
+		},
+		{
+			Name:        builtinVersion,
+			Description: "Show the installed Komut version.",
+			Handler:     runVersionBuiltin,
+		},
+	}
 }
 
 func dispatchBuiltin(invocation Invocation, resolver *Resolver) (string, error) {
@@ -56,17 +52,7 @@ func dispatchBuiltin(invocation Invocation, resolver *Resolver) (string, error) 
 	if !ok {
 		return "", fail(ErrInvalidCommand, command.Name, "unknown builtin command")
 	}
-
-	switch builtin.Kind {
-	case builtinKindHelp:
-		return runHelpBuiltin(command, invocation, resolver)
-	case builtinKindNew:
-		return runNewBuiltin(command, invocation, resolver)
-	case builtinKindVersion:
-		return runVersionBuiltin(command, invocation)
-	default:
-		return "", fail(ErrInvalidCommand, command.Name, "unknown builtin command")
-	}
+	return builtin.Handler(command, invocation, resolver)
 }
 
 func runHelpBuiltin(command Command, invocation Invocation, resolver *Resolver) (string, error) {
@@ -80,7 +66,7 @@ func runNewBuiltin(command Command, invocation Invocation, resolver *Resolver) (
 	return newPrompt(command.Args, invocation, resolver)
 }
 
-func runVersionBuiltin(command Command, invocation Invocation) (string, error) {
+func runVersionBuiltin(command Command, invocation Invocation, _ *Resolver) (string, error) {
 	if len(command.Args) != 0 || invocation.HasLead {
 		return "", fail(ErrInvalidInvocation, command.Name, "builtin version accepts no arguments or lead text")
 	}
@@ -88,7 +74,7 @@ func runVersionBuiltin(command Command, invocation Invocation) (string, error) {
 }
 
 func lookupBuiltin(name string) (builtinSpec, bool) {
-	for _, builtin := range builtinRegistry {
+	for _, builtin := range builtinRegistry() {
 		if builtin.Name == name {
 			return builtin, true
 		}
@@ -97,7 +83,7 @@ func lookupBuiltin(name string) (builtinSpec, bool) {
 }
 
 func builtinAlias(name string) (string, bool) {
-	for _, builtin := range builtinRegistry {
+	for _, builtin := range builtinRegistry() {
 		for _, alias := range builtin.Aliases {
 			if alias == name {
 				return builtin.Name, true

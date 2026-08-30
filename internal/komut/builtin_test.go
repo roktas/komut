@@ -30,20 +30,15 @@ func TestHelpAliasesAreEquivalent(t *testing.T) {
 }
 
 func TestBuiltinRegistryIsSelfConsistent(t *testing.T) {
-	seenKinds := make(map[builtinKind]bool)
 	seenNames := make(map[string]bool)
 	seenAliases := make(map[string]bool)
-	for _, builtin := range builtinRegistry {
-		if builtin.Kind == 0 || builtin.Description == "" || !validBuiltinName(builtin.Name) {
+	for _, builtin := range builtinRegistry() {
+		if builtin.Handler == nil || builtin.Description == "" || !validBuiltinName(builtin.Name) {
 			t.Fatalf("incomplete builtin registration: %#v", builtin)
-		}
-		if seenKinds[builtin.Kind] {
-			t.Fatalf("duplicate builtin kind %d", builtin.Kind)
 		}
 		if seenNames[builtin.Name] {
 			t.Fatalf("duplicate builtin name %q", builtin.Name)
 		}
-		seenKinds[builtin.Kind] = true
 		seenNames[builtin.Name] = true
 
 		for _, alias := range builtin.Aliases {
@@ -75,7 +70,7 @@ func TestHelpListsBuiltinRegistry(t *testing.T) {
 	if !strings.Contains(got, "Builtins:") || !strings.Contains(got, "No Komut commands found.") {
 		t.Fatalf("help = %q", got)
 	}
-	for _, builtin := range builtinRegistry {
+	for _, builtin := range builtinRegistry() {
 		if !strings.Contains(got, builtin.Name) || !strings.Contains(got, builtin.Description) {
 			t.Fatalf("help = %q, missing builtin %#v", got, builtin)
 		}
