@@ -153,7 +153,8 @@ func TestOpenCodePackage(t *testing.T) {
 		`name: "x"`,
 		`text: invocation(prompt.text),`,
 		`ctx.session.hook("prompt"`,
-		`event.prompt.text = expand(event.prompt.text, ctx.location.directory);`,
+		`ctx.session.get({ sessionID: event.sessionID })`,
+		`event.prompt.text = expand(event.prompt.text, session.directory);`,
 		`join(root, "bin", process.platform === "win32" ? "x.cmd" : "x")`,
 		`spawnSync(launcherPath()`,
 		`/^\s*\$x(?:\s|$)/u`,
@@ -163,8 +164,7 @@ func TestOpenCodePackage(t *testing.T) {
 		}
 	}
 	for _, forbidden := range []string{
-		`ctx.session.get`,
-		`session.directory`,
+		`ctx.location.directory`,
 		`session.location`,
 		`text: expand(invocation(prompt.text)`,
 		`libexec`,
