@@ -16,7 +16,10 @@ description: Friendly hello
 Hello $1
 EOF
 
-for plugin in codex claude opencode; do
+test -f "$dist/plugins/antigravity/plugin.json"
+test -f "$dist/plugins/antigravity/skills/x/SKILL.md"
+
+for plugin in codex claude opencode antigravity; do
         output=$(
                 cd "$project"
                 HOME="$home" "$dist/plugins/$plugin/bin/x" '$x hello world'

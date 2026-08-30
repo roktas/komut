@@ -117,6 +117,41 @@ func TestClaudeMarketplaceTargetsDistBranch(t *testing.T) {
 	assertMarketplaceEntry(t, ".claude-plugin/marketplace.json", "plugins/claude")
 }
 
+func TestAntigravityPluginManifest(t *testing.T) {
+	var manifest struct {
+		Schema      string `json:"$schema"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+	readJSON(t, "src/adapters/antigravity/plugin.json", &manifest)
+	if manifest.Schema != "https://antigravity.google/schemas/v1/plugin.json" || manifest.Name != "komut" || manifest.Description == "" {
+		t.Fatalf("unexpected Antigravity manifest: %#v", manifest)
+	}
+}
+
+func TestAntigravityNativeSkill(t *testing.T) {
+	source := string(readRepoFile(t, "src/adapters/antigravity/skills/x/SKILL.md"))
+	for _, required := range []string{
+		"name: x",
+		"`$x`",
+		"`/x`",
+		"`../../bin/x`",
+		"`../../bin/x.cmd`",
+		"current session working directory",
+		"standard input",
+		"operative instruction",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("Antigravity skill is missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{"--hook", "transcript"} {
+		if strings.Contains(source, forbidden) {
+			t.Fatalf("Antigravity skill contains unsupported transport %q", forbidden)
+		}
+	}
+}
+
 func TestOpenCodePackage(t *testing.T) {
 	var manifest struct {
 		Name    string `json:"name"`

@@ -180,6 +180,33 @@ $x review src/foo.go
 Codex marketplace documentation:
 <https://developers.openai.com/plugins/build/plugins>
 
+### Google Antigravity
+
+Check out the generated distribution branch and install its Antigravity plugin:
+
+```sh
+git clone --branch dist --single-branch https://github.com/roktas/komut.git komut-dist
+agy plugin install ./komut-dist/plugins/antigravity
+```
+
+For Antigravity 2.0 without the CLI, copy
+`komut-dist/plugins/antigravity` to `~/.gemini/config/plugins/komut`. Start a new
+session after installing either form.
+
+The plugin exposes the native Antigravity skill command:
+
+```text
+/x review src/foo.go
+```
+
+With no arguments, `/x` opens Komut help. The canonical `$x ...` syntax also
+works. Both forms use the installed `x` skill, which runs the packaged dispatcher
+from the current session working directory and follows its output.
+
+Antigravity plugin documentation:
+<https://antigravity.google/docs/plugins>
+<https://antigravity.google/docs/cli/plugins/>
+
 ### Claude Code
 
 Inside Claude Code, add the marketplace and install Komut:

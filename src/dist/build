@@ -3,10 +3,11 @@ set -eu
 
 root=$(CDPATH= cd "$(dirname "$0")/../.." && pwd)
 out=${1:-"$root/dist"}
+plugins='codex claude opencode antigravity'
 
 rm -rf "$out"
 
-for plugin in codex claude opencode; do
+for plugin in $plugins; do
         mkdir -p "$out/plugins/$plugin/bin" "$out/plugins/$plugin/libexec/x"
         cp -R "$root/src/adapters/$plugin/." "$out/plugins/$plugin/"
         cp "$root/bin/x" "$out/plugins/$plugin/bin/x"
@@ -31,7 +32,7 @@ build() {
                         -o "$temp" ./cmd/x
         )
 
-        for plugin in codex claude opencode; do
+        for plugin in $plugins; do
                 dir="$out/plugins/$plugin/libexec/x/$target"
                 mkdir -p "$dir"
                 cp "$temp" "$dir/$name"

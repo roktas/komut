@@ -381,13 +381,20 @@ be used as command-resolution scope.
 Current native aliases are:
 
 ```text
-Claude Code   /komut:x [ARGS...]
-OpenCode V2   /x [ARGS...]
+Claude Code          /komut:x [ARGS...]
+Google Antigravity   /x [ARGS...]
+OpenCode V2          /x [ARGS...]
 ```
 
-For both, the text after the native command is passed as the text after `$x`.
-Thus an argument-free native invocation maps to `$x` and therefore to `:help`.
-Codex uses the canonical `$x` syntax.
+For all native aliases, the text after the native command is passed as the text
+after `$x`. Thus an argument-free native invocation maps to `$x` and therefore
+to `:help`. Codex uses the canonical `$x` syntax.
+
+Antigravity uses its plugin skill transport because its hook events do not expose
+the active user prompt. The skill passes the invocation as data to the packaged
+launcher from the current session working directory and treats successful
+dispatcher output as the operative prompt. It must not infer the prompt from a
+persistent transcript.
 
 Each installed host package is self-contained and includes the same dispatcher
 semantics.
@@ -458,8 +465,8 @@ Tests must verify at least:
 - YAML metadata stripping and description fallback behavior;
 - help discovery, sorting, duplicate precedence, and no-command path guidance,
   including the user-home case;
-- Claude `/komut:x` and OpenCode `/x` native aliases use central dispatcher
-  semantics, including argument-free help;
+- Claude `/komut:x`, Antigravity `/x`, and OpenCode `/x` native aliases use
+  central dispatcher semantics, including argument-free help;
 - host adapters pass the current invocation/session working directory to the
   dispatcher rather than a plugin installation or load directory;
 - launchers and generated host packages preserve the same behavior.
