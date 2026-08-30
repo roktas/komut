@@ -1,6 +1,6 @@
 # Komut Specification
 
-Version: 0.1.0
+Version: 0.2.0
 
 ## 1. Purpose
 
@@ -12,30 +12,28 @@ A user writes:
 $x COMMAND [ARGS...] [ + COMMAND [ARGS...] ... ] [ -- LEAD ]
 ```
 
-Komut resolves each command to a Markdown prompt file, substitutes command
-arguments into that file, composes all rendered commands, and returns one final
-prompt for the current agent turn.
+Komut resolves Markdown command files, substitutes arguments, composes the
+rendered commands, and returns one final prompt for the current agent turn.
+Komut also provides the reserved builtin command `$x help`.
 
-Komut owns the command grammar, resolution rules, rendering rules, and the
-`x` dispatcher. It does not ship application commands. Users and projects
-provide their own command files.
+Komut owns the command grammar, resolution rules, rendering rules, builtin
+commands, and the `x` dispatcher. It does not ship application commands. Users
+and projects provide their own command files.
 
 Host integrations for Codex, Claude Code, OpenCode, and other agents are thin
 adapters around the same dispatcher semantics.
 
 ## 2. Design principles
 
-Komut follows these principles:
-
 - `$x` is the stable public namespace across hosts.
-- One invocation produces one final prompt and one agent turn.
-- Command files are plain Markdown data, not programs.
-- Parsing, resolution, and rendering belong to the central dispatcher, not host
-  adapters.
+- One ordinary invocation produces one final prompt and one agent turn.
+- Command files are Markdown prompt data with optional metadata, not programs.
+- Parsing, resolution, metadata handling, rendering, and builtins belong to the
+  central dispatcher, not host adapters.
 - Project commands may override user commands without changing user files.
 - Host-specific packaging must not change command semantics.
-- The normal installed path must not require Go, Python, Ruby, Node.js, or a
-  network download at runtime.
+- Normal installation must not require Go, Python, Ruby, Node.js, or a network
+  download at runtime.
 
 ## 3. Invocation grammar
 
@@ -56,48 +54,40 @@ Leading whitespace before `$x` is allowed. `$x` must be followed by whitespace.
 
 ### 3.1 Command composition
 
-An unquoted `+` token separates commands:
+An unquoted standalone `+` token separates commands:
 
 ```text
-$x code/review src/foo.rb + concise + lang/turkish
+$x code/review src/foo.go + concise + lang/turkish
 ```
 
-The commands are rendered independently and then composed in the declared
-order. They are not a pipeline. A later command does not receive the output of
-an earlier command as an argument.
+Commands are rendered independently and composed in declared order. They are
+not a pipeline.
 
-`+` is syntax only when it is an unquoted token separated by whitespace. It is
-ordinary text inside an argument such as `C++`, `a+b`, or `"a + b"`.
-
-If any command fails to parse, resolve, read, or render, the whole invocation
-fails. Komut must not return a partial composed prompt.
+`+` is ordinary text inside values such as `C++`, `a+b`, or `"a + b"`.
+If any composed command fails, the whole invocation fails. Komut must not return
+a partial prompt.
 
 ### 3.2 Lead text
 
-The first unquoted `--` token ends Komut parsing for the whole invocation. The
-remaining text is lead text:
+The first unquoted standalone `--` token ends Komut parsing globally:
 
 ```text
-$x code/review src/foo.rb + concise -- This is a public API.
+$x code/review src/foo.go + concise -- Keep the public API stable.
 ```
 
-After `--`, `+`, `--`, quotes, and `$` sequences have no Komut grammar meaning.
-The lead is not a command argument and is not used for template substitution.
-
-A non-empty lead is placed before the rendered command content in the final
-prompt.
+Everything after `--` is opaque lead text. It is not parsed for `+`, `--`,
+quotes, or template substitutions. A non-empty lead is placed before rendered
+command content.
 
 ### 3.3 Arguments and quoting
 
-Whitespace separates arguments unless the text is quoted.
+Whitespace separates arguments unless text is quoted. Single quotes preserve
+their contents literally. Double quotes preserve whitespace and allow `\"` and
+`\\` escapes.
 
-Single quotes preserve their contents literally until the closing single quote.
-Double quotes preserve whitespace and allow `\"` and `\\` escapes. Komut does
-not implement shell expansion, environment expansion, globbing, command
-substitution, or any other shell feature.
-
-An unquoted `+` or `--` token is syntax, not an argument. Quoted `"+"` and
-`"--"` are ordinary arguments.
+Komut does not implement shell expansion, environment expansion, globbing,
+command substitution, or other shell features. Quoted `"+"` and `"--"` are
+ordinary arguments.
 
 ## 4. Command names and paths
 
@@ -110,9 +100,7 @@ git/commit
 foo/bar-baz
 ```
 
-The complete command name must be at most 64 ASCII characters, including
-slashes.
-
+The complete name must be at most 64 ASCII characters, including slashes.
 Each segment must:
 
 - contain only lowercase ASCII letters, digits, and `-`;
@@ -120,24 +108,20 @@ Each segment must:
 - contain at least one character;
 - not contain `--`.
 
-A command name must not start or end with `/` and must not contain `//`.
-Characters such as `.`, `\\`, `_`, and whitespace are not allowed in command
-names. These rules make path traversal impossible by construction.
+A name must not start or end with `/` or contain `//`. Characters such as `.`,
+`\\`, `_`, and whitespace are not allowed.
 
-A command name maps directly to a Markdown path. For example:
-
-```text
-foo/bar/baz
-```
-
-maps to:
+A name maps directly to a Markdown path. `foo/bar/baz` maps to:
 
 ```text
 commands/foo/bar/baz.md
 ```
 
-Komut does not enumerate command directories, try alternative names, or perform
-fuzzy matching.
+Except for the builtin `help`, Komut does not enumerate command directories,
+try alternative names, or perform fuzzy matching during normal dispatch.
+
+The name `help` is reserved. A `help.md` file cannot override the builtin and is
+not listed as an application command.
 
 ## 5. Command locations and scope
 
@@ -154,37 +138,77 @@ Project commands live under:
 ```
 
 Project scope is found by walking upward from the current working directory and
-selecting the nearest `.agents/commands` path.
+selecting the nearest `.agents/commands` directory. The user's home directory is
+not treated as project scope.
 
-The user's home directory is not treated as project scope. The user command tree
-at `~/.agents/commands` is resolved separately.
+For each ordinary command, resolution order is:
 
-For each command, resolution order is:
-
-1. the command path in the nearest project command tree, if such a tree exists;
-2. the command path in the user command tree;
+1. the command in the nearest project command tree, if present;
+2. the command in the user command tree;
 3. not found.
 
-The nearest project `.agents/commands` tree is a scope boundary. If it exists but
-does not contain the requested command, Komut falls back directly to user scope.
-It must not continue searching more distant project command trees.
+The nearest project command tree is a scope boundary. If it does not contain the
+requested command, Komut falls back directly to user scope and does not search
+more distant project command trees.
 
-A project command shadows a user command with the same command name.
-
-All commands in one invocation use the same project-scope discovery result.
-Komut should perform the ancestor walk once per invocation.
+A project command shadows a user command with the same name. All commands in one
+invocation use the same project-scope discovery result. The ancestor walk should
+run once per invocation.
 
 ## 6. Command file contract
 
-A command file must be a readable, non-empty, UTF-8 regular Markdown file.
-Komut treats the complete file contents as a prompt template.
+A command file must be a readable, non-empty, UTF-8 regular Markdown file. It
+may begin with optional YAML frontmatter. When frontmatter is present, the
+frontmatter is metadata and the remaining Markdown body is the prompt template.
+The metadata is never sent to the agent.
 
-Komut does not parse YAML frontmatter or any other command metadata layer.
 Command files are data and are never executed.
 
-### 6.1 Template substitution
+### 6.1 YAML frontmatter
 
-The dispatcher recognizes these substitutions in command file content:
+Frontmatter is recognized only at the start of the file and is delimited by
+lines containing `---`:
+
+```md
+---
+description: Review code for correctness and maintainability.
+---
+
+Review $1.
+```
+
+The frontmatter must be valid YAML. Komut currently defines one metadata field:
+
+```yaml
+description: <string>
+```
+
+`description` is optional. Unknown frontmatter fields are allowed and ignored by
+this specification. A malformed frontmatter block makes the command file
+invalid for ordinary command execution.
+
+A file without frontmatter remains valid and its complete contents are the
+prompt template.
+
+### 6.2 Description
+
+The builtin `help` derives a command description in this order:
+
+1. a non-empty string `description` in YAML frontmatter;
+2. otherwise, the first non-empty body line if it is an ATX Markdown heading
+   (`#` through `######` followed by whitespace);
+3. otherwise, an empty description.
+
+Only the heading text is used. The heading remains part of the prompt body.
+Descriptions are displayed on one line; whitespace inside a metadata description
+may be collapsed for help output.
+
+Description extraction is informational: a file that cannot provide usable
+metadata may still be listed by `help` with an empty description.
+
+### 6.3 Template substitution
+
+The dispatcher recognizes these substitutions in the prompt body:
 
 ```text
 $1 ... $9   positional command arguments
@@ -192,56 +216,91 @@ $*          all command arguments joined by one space
 $$          a literal $
 ```
 
-Each command has its own positional arguments. For example:
+Each composed command has its own arguments. A referenced positional argument
+that was not supplied is an error. Substitution is single-pass: text introduced
+by an argument is not scanned again. Other `$` sequences remain literal.
+
+## 7. Builtin help
+
+`$x help` is a reserved builtin command. It lists application commands available
+from the current user and project scopes.
+
+The builtin form is exactly one command with no arguments, no composition, and
+no lead text:
 
 ```text
-$x foo a b + bar c
+$x help
 ```
 
-renders `foo` with `$1 = a`, `$2 = b`, and renders `bar` with `$1 = c`.
+Other uses of `help`, such as `$x help foo` or `$x help + concise`, are invalid.
 
-A referenced positional argument that was not supplied is an error. Komut must
-not silently replace a missing argument with an empty string.
+### 7.1 Discovery
 
-Substitution is single-pass. Text introduced by an argument is not scanned again
-for substitutions.
+`help` is the explicit exception to the normal no-enumeration rule. It recursively
+enumerates the selected nearest project command tree and the user command tree.
 
-A `$` sequence that does not match one of the forms above remains literal.
+A discovered `.md` path is listed only when its relative path maps to a valid
+Komut command name. `help.md` is omitted because `help` is reserved.
 
-## 7. Prompt composition
+Project filesystem safety rules still apply. Project symlink files and symlink
+subtrees are not commands and must not be followed by `help`. User-scope
+symlinks remain allowed; help should discover commands reachable through them
+while avoiding traversal loops.
 
-Each command file is resolved and rendered independently. The rendered command
-contents are then joined in invocation order with two LF characters (`\n\n`)
-between components.
+If the same command name exists in both scopes, the project command wins and is
+listed once. Help output is sorted lexicographically by command name.
+
+### 7.2 Output
+
+For each selected command, help prints the command name and, when available, its
+description. The output is deterministic. A suitable text form is:
+
+```text
+code/review   Review code for correctness and maintainability.
+git/commit    Create a conventional commit.
+text/concise
+```
+
+If no application commands are found, help must explain where to create them and
+show absolute paths for both scopes. It must show:
+
+- the user command directory: `<home>/.agents/commands`;
+- the project command directory.
+
+If a nearest project command tree already exists, that tree is the project path.
+If no project command tree exists, help uses `<cwd>/.agents/commands` as the
+suggested path that would establish project scope at the current directory.
+
+A no-command response should be equivalent to:
+
+```text
+No Komut commands found.
+
+Create user-wide commands in:
+  /absolute/home/.agents/commands
+
+Create project commands in:
+  /absolute/current/project/.agents/commands
+```
+
+## 8. Prompt composition
+
+Each ordinary command file is resolved, its metadata removed, and its body
+rendered independently. Rendered command bodies are joined in invocation order
+with two LF characters (`\n\n`) between components.
 
 If a non-empty lead is present, it is the first component and is separated from
-the first rendered command by the same two-LF separator.
+the first rendered body by the same two-LF separator.
 
-Komut otherwise preserves command file content. It does not interpret or merge
+Komut otherwise preserves prompt body content. It does not interpret or merge
 instructions semantically.
 
-For example:
-
-```text
-$x code/review src/foo.rb + concise -- This is a public API.
-```
-
-conceptually produces:
-
-```text
-This is a public API.
-
-<rendered code/review.md>
-
-<rendered concise.md>
-```
-
-## 8. Filesystem safety
+## 9. Filesystem safety
 
 Project command trees are repository-controlled input and receive stricter path
 checks than user scope.
 
-For project scope, Komut must reject:
+For project scope, Komut must reject during ordinary resolution:
 
 - a symbolic-link `.agents` path;
 - a symbolic-link `commands` path;
@@ -249,56 +308,30 @@ For project scope, Komut must reject:
 - a symbolic-link selected command file;
 - a selected path component with an unexpected file type.
 
-The selected project command must remain inside the selected project
-`.agents/commands` tree.
+The selected project command must remain inside the selected project command
+tree. User-scope symbolic links are allowed because they are user-controlled and
+useful for dotfile management. The final selected user command must still resolve
+to a readable regular file.
 
-User-scope symbolic links are allowed because they are controlled by the user
-and are useful for dotfile management. The final selected user command must
-still resolve to a readable regular file.
+Malformed or unsafe ordinary command paths fail closed.
 
-A malformed or unsafe path must fail closed. Komut must never read an unrelated
-file as a command.
+## 10. Dispatcher and host adapters
 
-## 9. Dispatcher
+The central implementation is the `x` dispatcher written in Go. It owns:
 
-The central implementation is the `x` dispatcher written in Go.
+- invocation parsing and command-name validation;
+- scope discovery and command resolution;
+- command metadata parsing;
+- template substitution and composition;
+- builtin commands, including `help`;
+- final output generation.
 
-The dispatcher owns:
+Host adapters must not implement a second copy of these semantics. They should
+only recognize explicit `$x` input cheaply, invoke the packaged dispatcher with
+the prompt and working directory, inject its result into the same turn, and
+surface dispatcher errors.
 
-- invocation parsing;
-- command-name validation;
-- project and user resolution;
-- command-file validation and reading;
-- template substitution;
-- multi-command composition;
-- final prompt generation.
-
-Host adapters must not implement a second copy of these semantics.
-
-The dispatcher operates on the full `$x ...` invocation text and emits the final
-rendered prompt. The exact process transport used by host adapters is an
-implementation detail, but the rendered result must be identical across hosts
-for the same invocation, working directory, home directory, and command files.
-
-## 10. Host adapters
-
-Host adapters connect native host extension points to the central dispatcher.
-They should do only the minimum host-specific work required to:
-
-1. recognize an explicit `$x` invocation cheaply;
-2. invoke the packaged dispatcher with the current prompt and working directory;
-3. inject the rendered prompt into the same agent turn;
-4. surface dispatcher errors without attempting a second resolution path.
-
-Adapters may use hooks, prompt interception, native commands, or another host
-mechanism as required by that host. These mechanisms are not part of the Komut
-command protocol.
-
-Native slash-command aliases may be added by a host adapter, but `$x` remains
-the canonical cross-host syntax.
-
-Host-specific plugin packages live in clearly separated repository subtrees,
-for example:
+Host-specific plugin packages live in separate repository subtrees:
 
 ```text
 plugins/
@@ -307,15 +340,12 @@ plugins/
 └── opencode/
 ```
 
-Each installed host package must be self-contained. It must not rely on files
-outside its installed plugin subtree.
+Each installed host package must be self-contained.
 
 ## 11. Binary distribution
 
-Komut is implemented in Go but installed users must not need a Go toolchain.
-Supported host packages contain prebuilt dispatcher binaries.
-
-The package-level executable layout is:
+Installed users must not need a Go toolchain. Supported host packages contain
+prebuilt dispatcher binaries:
 
 ```text
 bin/
@@ -331,18 +361,11 @@ libexec/
     └── windows-amd64/x.exe
 ```
 
-`bin/x` is a small POSIX shell launcher. `bin/x.cmd` is a small Windows command
-launcher. A launcher only detects the local OS/architecture and transfers
-control to the matching prebuilt binary under `libexec/x/`.
-
-Launchers do not parse Komut syntax and do not implement command semantics.
-
-Normal plugin installation must not compile Go code, download an executable on
-first use, or modify unrelated host configuration files.
+`bin/x` is a small POSIX shell launcher. `bin/x.cmd` is a small Windows launcher.
+Launchers only select the matching binary. They do not parse Komut syntax or
+implement command semantics.
 
 ## 12. Repository organization
-
-The source repository separates the core implementation from host packaging:
 
 ```text
 komut/
@@ -363,41 +386,35 @@ komut/
 └── README.md
 ```
 
-The exact internal Go package split may evolve. The protocol and behavioral
-contracts in this specification are authoritative over directory convenience.
-
-Host package build/release steps may copy the launchers and prebuilt binaries
-into each self-contained plugin subtree. Generated package copies must not become
+The protocol and behavioral contracts in this specification are authoritative
+over directory convenience. Generated distribution copies must not become
 independent sources of command semantics.
 
 ## 13. Performance requirements
 
-Dispatch is on the interactive prompt path and should remain small and
-predictable.
+Normal dispatch is on the interactive prompt path and must remain small and
+predictable. It must:
 
-The implementation must:
-
-- avoid network I/O during dispatch;
+- avoid network I/O;
 - avoid command-directory enumeration;
 - perform at most one ancestor walk per invocation;
-- read only the command files selected by the invocation;
+- read only command files selected by the invocation;
 - avoid starting subprocesses from the Go dispatcher;
-- render all commands before returning one final prompt;
-- keep non-`$x` host-adapter handling cheap.
+- render all commands before returning one final prompt.
 
-No fixed wall-clock target is specified because process startup and filesystem
-costs vary by platform and host.
+`$x help` may enumerate the user and selected project command trees because
+listing commands is its purpose. It must not search unrelated directories or
+more distant project scopes.
 
 ## 14. Errors
 
-At minimum, Komut must distinguish these error classes internally and present a
-concise diagnostic to the host:
+At minimum, Komut must distinguish these error classes internally:
 
 - invalid invocation syntax;
 - invalid command name;
 - command not found;
 - unsafe project path;
-- invalid command file;
+- invalid command file or frontmatter;
 - unterminated quote;
 - missing positional argument;
 - unsupported launcher platform.
@@ -406,29 +423,24 @@ Errors must not produce a partial rendered prompt.
 
 ## 15. Acceptance criteria
 
-The core implementation is complete when tests verify at least:
+Tests must verify at least:
 
-- leading whitespace before `$x` is accepted;
-- `$xfoo` is not accepted as `$x`;
-- a single command renders correctly;
-- multiple commands separated by `+` render in order into one prompt;
-- quoted `+` and `--` remain arguments;
-- `--` stops parsing globally and preserves the remaining lead text;
-- lead text is placed before rendered commands;
-- single- and double-quoted arguments work as specified;
-- `$1` through `$9`, `$*`, and `$$` render correctly;
-- a missing referenced positional argument fails the whole invocation;
-- substitution is not recursive;
-- slash command names resolve to nested Markdown paths;
-- traversal-like and otherwise invalid command names are rejected;
-- project commands override user commands;
-- a missing nearest-project command falls back directly to user scope;
-- the nearest project command tree is a scope boundary;
-- the home command tree is not misclassified as project scope;
-- project symlinks, including nested command-path symlinks, are rejected;
-- user-scope symlinks remain usable when they resolve to regular files;
-- empty, unreadable, non-UTF-8, and non-regular command files fail;
-- one invocation performs one project ancestor walk;
-- failure of any composed command produces no partial output;
-- launchers select the expected packaged binary for each supported platform;
-- host adapters produce the same rendered prompt semantics for equivalent input.
+- `$x` boundary, quoting, `+`, and global `--` behavior;
+- `$1` through `$9`, `$*`, `$$`, missing arguments, and single-pass rendering;
+- slash command names and traversal rejection;
+- project-over-user precedence and nearest project scope boundaries;
+- project symlink rejection and user-scope symlink support;
+- empty, unreadable, non-UTF-8, and non-regular command-file failures;
+- valid frontmatter is removed from rendered prompt bodies;
+- malformed frontmatter fails ordinary command execution;
+- description prefers frontmatter, then the first non-empty ATX body heading,
+  then empty text;
+- `help` is reserved and cannot be overridden by `help.md`;
+- `$x help` recursively lists valid command names from user and project scopes;
+- project commands win duplicate names in help output;
+- help output is sorted and deterministic;
+- project symlink paths are not followed during help enumeration;
+- user-scope symlink commands can be discovered without traversal loops;
+- no-command help output shows absolute user and project command directories;
+- ordinary dispatch still performs no command-directory enumeration;
+- launchers and host adapters preserve dispatcher semantics across hosts.
