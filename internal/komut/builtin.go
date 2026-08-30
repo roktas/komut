@@ -21,8 +21,8 @@ type builtinSpec struct {
 	Handler     builtinHandler
 }
 
-func builtinRegistry() [...]builtinSpec {
-	return [...]builtinSpec{
+func builtinRegistry() []builtinSpec {
+	return []builtinSpec{
 		{
 			Name:        builtinHelp,
 			Description: "List available commands.",
