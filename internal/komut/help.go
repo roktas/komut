@@ -33,10 +33,14 @@ func (r *Resolver) Help() (string, error) {
 		}
 		fmt.Fprintf(
 			&b,
-			"\nNo Komut commands found.\n\nCreate user-wide commands in:\n  %s\n\nCreate project commands in:\n  %s",
+			"\nNo Komut commands found.\n\nCreate user-wide commands in:\n  %s",
 			r.userCommands,
-			projectCommands,
 		)
+		if samePath(projectCommands, r.userCommands) {
+			b.WriteString("\n\nProject commands are unavailable from the user home.\nRun Komut from a project directory; project commands live in:\n  <project>/.agents/commands")
+		} else {
+			fmt.Fprintf(&b, "\n\nCreate project commands in:\n  %s", projectCommands)
+		}
 		return b.String(), nil
 	}
 
