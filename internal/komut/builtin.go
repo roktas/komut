@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	builtinHelp   = ":help"
-	builtinCreate = ":create"
+	builtinHelp = ":help"
+	builtinNew  = ":new"
 )
 
 func dispatchBuiltin(invocation Invocation, resolver *Resolver) (string, error) {
@@ -23,14 +23,14 @@ func dispatchBuiltin(invocation Invocation, resolver *Resolver) (string, error) 
 			return "", fail(ErrInvalidInvocation, builtinHelp, "builtin help accepts no arguments or lead text")
 		}
 		return resolver.Help()
-	case builtinCreate:
-		return createPrompt(command.Args, invocation, resolver)
+	case builtinNew:
+		return newPrompt(command.Args, invocation, resolver)
 	default:
 		return "", fail(ErrInvalidCommand, command.Name, "unknown builtin command")
 	}
 }
 
-func createPrompt(args []string, invocation Invocation, resolver *Resolver) (string, error) {
+func newPrompt(args []string, invocation Invocation, resolver *Resolver) (string, error) {
 	scope := "project"
 	scopeSet := false
 	name := ""
@@ -40,15 +40,15 @@ func createPrompt(args []string, invocation Invocation, resolver *Resolver) (str
 		case "--user", "--project":
 			selected := strings.TrimPrefix(arg, "--")
 			if scopeSet && selected != scope {
-				return "", fail(ErrInvalidInvocation, builtinCreate, "choose only one of --user or --project")
+				return "", fail(ErrInvalidInvocation, builtinNew, "choose only one of --user or --project")
 			}
 			scope = selected
 			scopeSet = true
 		default:
 			if name != "" {
-				return "", fail(ErrInvalidInvocation, builtinCreate, "expected at most one command name")
+				return "", fail(ErrInvalidInvocation, builtinNew, "expected at most one command name")
 			}
-			if !ValidCommandName(arg) || arg == "help" {
+			if !ValidCommandName(arg) {
 				return "", fail(ErrInvalidCommand, arg, "invalid or reserved application command name")
 			}
 			name = arg
