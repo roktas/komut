@@ -30,18 +30,20 @@ func TestHelpAliasesAreEquivalent(t *testing.T) {
 }
 
 func TestBuiltinRegistryIsSelfConsistent(t *testing.T) {
+	seenKinds := make(map[builtinKind]bool)
 	seenNames := make(map[string]bool)
 	seenAliases := make(map[string]bool)
 	for _, builtin := range builtinRegistry {
-		if !validBuiltinName(builtin.Name) {
-			t.Fatalf("invalid builtin name %q", builtin.Name)
-		}
-		if builtin.Handler == nil || builtin.Description == "" {
+		if builtin.Kind == 0 || builtin.Description == "" || !validBuiltinName(builtin.Name) {
 			t.Fatalf("incomplete builtin registration: %#v", builtin)
+		}
+		if seenKinds[builtin.Kind] {
+			t.Fatalf("duplicate builtin kind %d", builtin.Kind)
 		}
 		if seenNames[builtin.Name] {
 			t.Fatalf("duplicate builtin name %q", builtin.Name)
 		}
+		seenKinds[builtin.Kind] = true
 		seenNames[builtin.Name] = true
 
 		for _, alias := range builtin.Aliases {
