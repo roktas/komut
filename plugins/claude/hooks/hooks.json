@@ -14,6 +14,7 @@
     ],
     "UserPromptExpansion": [
       {
+        "matcher": "^(komut:x|x)$",
         "hooks": [
           {
             "type": "command",
