@@ -36,7 +36,7 @@ Review $1.
 Pay special attention to correctness and compatibility.
 ```
 
-Then type this **in the agent prompt, not in your shell**:
+Invoke it with:
 
 ```text
 $x review src/foo.go
@@ -126,6 +126,12 @@ Start Codex and open the plugin browser:
 Select the **Komut** marketplace, install `komut`, then start a new Codex
 session.
 
+In the Codex prompt, invoke a command with:
+
+```text
+$x review src/foo.go
+```
+
 Codex marketplace documentation:
 <https://developers.openai.com/plugins/build/plugins>
 
@@ -144,6 +150,12 @@ If Claude Code asks you to reload plugins, run:
 /reload-plugins
 ```
 
+In the Claude Code prompt, invoke a command with:
+
+```text
+$x review src/foo.go
+```
+
 Claude Code marketplace documentation:
 <https://code.claude.com/docs/en/discover-plugins>
 
@@ -157,6 +169,12 @@ opencode2 plugin add "github:roktas/komut#dist::path:plugins/opencode"
 ```
 
 Restart the OpenCode service or start a new OpenCode session after installation.
+
+In the OpenCode prompt, invoke a command with:
+
+```text
+$x review src/foo.go
+```
 
 OpenCode V2 plugin documentation:
 <https://opencode.ai/v2/docs/plugins>
