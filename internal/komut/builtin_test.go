@@ -118,6 +118,37 @@ func TestNewUserScopeAndUnnamedCommand(t *testing.T) {
 	}
 }
 
+func TestNewRejectsProjectScopeAtUserHome(t *testing.T) {
+	home := t.TempDir()
+
+	_, err := Dispatch(`$x :new review`, home, home)
+	assertErrorCode(t, err, ErrInvalidInvocation)
+
+	got, err := Dispatch(`$x :new --user review`, home, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, filepath.Join(home, ".agents", "commands", "review.md")) {
+		t.Fatalf("new user prompt = %q", got)
+	}
+}
+
+func TestNewRejectsUnsafeProjectAuthoringPath(t *testing.T) {
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	cwd := filepath.Join(home, "work")
+	target := filepath.Join(base, "outside")
+	mustMkdirAll(t, cwd)
+	mustMkdirAll(t, target)
+
+	if err := os.Symlink(target, filepath.Join(cwd, ".agents")); err != nil {
+		t.Skipf("cannot create symlink: %v", err)
+	}
+
+	_, err := Dispatch(`$x :new review`, cwd, home)
+	assertErrorCode(t, err, ErrUnsafeProjectPath)
+}
+
 func TestNewRejectsInvalidOptionsAndNames(t *testing.T) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
