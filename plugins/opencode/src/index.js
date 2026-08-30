@@ -53,7 +53,8 @@ export default Plugin.define({
                 await ctx.session.hook("prompt", async (event) => {
                         if (!/^\s*\$x(?:\s|$)/u.test(event.prompt.text)) return;
 
-                        event.prompt.text = expand(event.prompt.text, ctx.location.directory);
+                        const session = await ctx.session.get({ sessionID: event.sessionID });
+                        event.prompt.text = expand(event.prompt.text, session.directory);
                 });
         },
 });
