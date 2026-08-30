@@ -28,10 +28,21 @@ for plugin in codex claude opencode; do
 
         help=$(
                 cd "$project"
-                HOME="$home" "$dist/plugins/$plugin/bin/x" '$x help'
+                HOME="$home" "$dist/plugins/$plugin/bin/x" '$x'
         )
+        printf '%s' "$help" | grep -F ':new' >/dev/null
+        printf '%s' "$help" | grep -F ':version' >/dev/null
         printf '%s' "$help" | grep -F 'hello' >/dev/null
         printf '%s' "$help" | grep -F 'Friendly hello' >/dev/null
+
+        version=$(
+                cd "$project"
+                HOME="$home" "$dist/plugins/$plugin/bin/x" '$x :version'
+        )
+        if [ "$version" != 'Komut 0.3.0' ]; then
+                echo "smoke: $plugin version returned: $version" >&2
+                exit 1
+        fi
 done
 
 payload=$(printf '{"prompt":"$x hello world","cwd":"%s"}' "$project")
@@ -44,6 +55,11 @@ if [ "$codex_hook" != "$claude_hook" ]; then
 fi
 printf '%s' "$codex_hook" | grep -F '"hookEventName":"UserPromptSubmit"' >/dev/null
 printf '%s' "$codex_hook" | grep -F 'Hello world' >/dev/null
+
+claude_native_payload=$(printf '{"hook_event_name":"UserPromptExpansion","expansion_type":"slash_command","command_name":"komut:x","command_args":"hello world","command_source":"plugin","cwd":"%s"}' "$project")
+claude_native=$(printf '%s' "$claude_native_payload" | HOME="$home" CLAUDE_PLUGIN_ROOT="$dist/plugins/claude" "$dist/plugins/claude/hooks/run.cmd")
+printf '%s' "$claude_native" | grep -F '"hookEventName":"UserPromptExpansion"' >/dev/null
+printf '%s' "$claude_native" | grep -F 'Hello world' >/dev/null
 
 noop=$(printf '{"prompt":"hello","cwd":"%s"}' "$project" | HOME="$home" "$dist/plugins/codex/bin/x" --hook)
 if [ -n "$noop" ]; then

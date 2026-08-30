@@ -21,16 +21,25 @@ func (r *Resolver) Help() (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	var b strings.Builder
+	b.WriteString("Builtins:\n\n")
+	b.WriteString(":help     List available commands. Aliases: help, ?\n")
+	b.WriteString(":new      Create a command with the agent.\n")
+	b.WriteString(":version  Show the installed Komut version.\n")
+
 	if len(entries) == 0 {
 		projectCommands := r.projectCommands
 		if projectCommands == "" {
 			projectCommands = filepath.Join(r.cwd, ".agents", "commands")
 		}
-		return fmt.Sprintf(
-			"No Komut commands found.\n\nCreate user-wide commands in:\n  %s\n\nCreate project commands in:\n  %s",
+		fmt.Fprintf(
+			&b,
+			"\nNo Komut commands found.\n\nCreate user-wide commands in:\n  %s\n\nCreate project commands in:\n  %s",
 			r.userCommands,
 			projectCommands,
-		), nil
+		)
+		return b.String(), nil
 	}
 
 	width := 0
@@ -38,8 +47,7 @@ func (r *Resolver) Help() (string, error) {
 		width = max(width, len(entry.Name))
 	}
 
-	var b strings.Builder
-	b.WriteString("Available Komut commands:\n\n")
+	b.WriteString("\nCommands:\n\n")
 	for i, entry := range entries {
 		b.WriteString(entry.Name)
 		if entry.Description != "" {
@@ -105,7 +113,7 @@ func (r *Resolver) listProjectCommands(commands map[string]HelpEntry) error {
 			return nil
 		}
 		name := strings.TrimSuffix(logical, ".md")
-		if name == "help" || !ValidCommandName(name) {
+		if !ValidCommandName(name) {
 			return nil
 		}
 
@@ -178,7 +186,7 @@ func (r *Resolver) walkUserCommandDir(dir, prefix string, active map[string]bool
 			continue
 		}
 		name := strings.TrimSuffix(logical, ".md")
-		if name == "help" || !ValidCommandName(name) {
+		if !ValidCommandName(name) {
 			continue
 		}
 

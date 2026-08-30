@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	builtinHelp = ":help"
-	builtinNew  = ":new"
+	builtinHelp    = ":help"
+	builtinNew     = ":new"
+	builtinVersion = ":version"
 )
 
 func dispatchBuiltin(invocation Invocation, resolver *Resolver) (string, error) {
@@ -25,6 +26,11 @@ func dispatchBuiltin(invocation Invocation, resolver *Resolver) (string, error) 
 		return resolver.Help()
 	case builtinNew:
 		return newPrompt(command.Args, invocation, resolver)
+	case builtinVersion:
+		if len(command.Args) != 0 || invocation.HasLead {
+			return "", fail(ErrInvalidInvocation, builtinVersion, "builtin version accepts no arguments or lead text")
+		}
+		return "Komut " + Version, nil
 	default:
 		return "", fail(ErrInvalidCommand, command.Name, "unknown builtin command")
 	}

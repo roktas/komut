@@ -24,13 +24,18 @@ func Parse(input string) (Invocation, error) {
 
 	p := parser{input: input}
 	p.skipSpace()
-
-	if !p.consumeLiteral("$x") || p.eof() || !p.spaceAt(p.pos) {
-		return Invocation{}, fail(ErrInvalidInvocation, "", "expected $x followed by whitespace")
+	if !p.consumeLiteral("$x") {
+		return Invocation{}, fail(ErrInvalidInvocation, "", "expected $x")
+	}
+	if p.eof() {
+		return helpInvocation(), nil
+	}
+	if !p.spaceAt(p.pos) {
+		return Invocation{}, fail(ErrInvalidInvocation, "", "expected whitespace after $x")
 	}
 	p.skipSpace()
 	if p.eof() {
-		return Invocation{}, fail(ErrInvalidInvocation, "", "missing command")
+		return helpInvocation(), nil
 	}
 
 	var invocation Invocation
@@ -70,6 +75,10 @@ func Parse(input string) (Invocation, error) {
 
 		return Invocation{}, fail(ErrInvalidInvocation, "", "unexpected parser state")
 	}
+}
+
+func helpInvocation() Invocation {
+	return Invocation{Commands: []Command{{Name: builtinHelp}}}
 }
 
 type parser struct {
@@ -285,8 +294,8 @@ func HasInvocationPrefix(input string) bool {
 	}
 	p := parser{input: input}
 	p.skipSpace()
-	if !p.consumeLiteral("$x") || p.eof() {
+	if !p.consumeLiteral("$x") {
 		return false
 	}
-	return p.spaceAt(p.pos)
+	return p.eof() || p.spaceAt(p.pos)
 }

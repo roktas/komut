@@ -3,6 +3,7 @@ package komut_test
 import (
 	"encoding/json"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -13,7 +14,7 @@ func TestCodexPluginManifest(t *testing.T) {
 		Version string `json:"version"`
 	}
 	readJSON(t, "plugins/codex/.codex-plugin/plugin.json", &manifest)
-	if manifest.Name != "komut" || manifest.Version != "0.1.0" {
+	if manifest.Name != "komut" || manifest.Version != productVersion(t) {
 		t.Fatalf("unexpected Codex manifest: %#v", manifest)
 	}
 }
@@ -52,32 +53,38 @@ func TestClaudePluginManifest(t *testing.T) {
 		Version string `json:"version"`
 	}
 	readJSON(t, "plugins/claude/.claude-plugin/plugin.json", &manifest)
-	if manifest.Name != "komut" || manifest.Version != "" {
+	if manifest.Name != "komut" || manifest.Version != productVersion(t) {
 		t.Fatalf("unexpected Claude manifest: %#v", manifest)
 	}
 }
 
-func TestClaudeHookUsesCrossPlatformWrapper(t *testing.T) {
+func TestClaudeHooksUseCrossPlatformWrapper(t *testing.T) {
+	type hookGroup struct {
+		Hooks []struct {
+			Type    string `json:"type"`
+			Command string `json:"command"`
+			Timeout int    `json:"timeout"`
+		} `json:"hooks"`
+	}
 	var config struct {
 		Hooks struct {
-			UserPromptSubmit []struct {
-				Hooks []struct {
-					Type    string `json:"type"`
-					Command string `json:"command"`
-					Timeout int    `json:"timeout"`
-				} `json:"hooks"`
-			} `json:"UserPromptSubmit"`
+			UserPromptSubmit    []hookGroup `json:"UserPromptSubmit"`
+			UserPromptExpansion []hookGroup `json:"UserPromptExpansion"`
 		} `json:"hooks"`
 	}
 	readJSON(t, "plugins/claude/hooks/hooks.json", &config)
 
-	groups := config.Hooks.UserPromptSubmit
-	if len(groups) != 1 || len(groups[0].Hooks) != 1 {
-		t.Fatalf("unexpected Claude UserPromptSubmit hook layout")
-	}
-	hook := groups[0].Hooks[0]
-	if hook.Type != "command" || hook.Command != `"${CLAUDE_PLUGIN_ROOT}/hooks/run.cmd"` || hook.Timeout != 5 {
-		t.Fatalf("unexpected Claude hook: %#v", hook)
+	for name, groups := range map[string][]hookGroup{
+		"UserPromptSubmit":    config.Hooks.UserPromptSubmit,
+		"UserPromptExpansion": config.Hooks.UserPromptExpansion,
+	} {
+		if len(groups) != 1 || len(groups[0].Hooks) != 1 {
+			t.Fatalf("unexpected Claude %s hook layout", name)
+		}
+		hook := groups[0].Hooks[0]
+		if hook.Type != "command" || hook.Command != `"${CLAUDE_PLUGIN_ROOT}/hooks/run.cmd"` || hook.Timeout != 5 {
+			t.Fatalf("unexpected Claude %s hook: %#v", name, hook)
+		}
 	}
 
 	data, err := os.ReadFile("plugins/claude/hooks/run.cmd")
@@ -91,6 +98,24 @@ func TestClaudeHookUsesCrossPlatformWrapper(t *testing.T) {
 	} {
 		if !strings.Contains(source, required) {
 			t.Fatalf("Claude wrapper is missing %q", required)
+		}
+	}
+}
+
+func TestClaudeNativeSkill(t *testing.T) {
+	data, err := os.ReadFile("plugins/claude/skills/x/SKILL.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(data)
+	for _, required := range []string{
+		"name: x",
+		"disable-model-invocation: true",
+		"argument-hint: [command-and-arguments]",
+		"$ARGUMENTS",
+	} {
+		if !strings.Contains(source, required) {
+			t.Fatalf("Claude native skill is missing %q", required)
 		}
 	}
 }
@@ -110,7 +135,7 @@ func TestOpenCodePackage(t *testing.T) {
 		Dependencies map[string]string `json:"dependencies"`
 	}
 	readJSON(t, "plugins/opencode/package.json", &manifest)
-	if manifest.Name != "komut-opencode" || manifest.Version != "0.1.0" || manifest.Type != "module" || manifest.Exports.Root != "./src/index.js" {
+	if manifest.Name != "komut-opencode" || manifest.Version != productVersion(t) || manifest.Type != "module" || manifest.Exports.Root != "./src/index.js" {
 		t.Fatalf("unexpected OpenCode manifest: %#v", manifest)
 	}
 	if manifest.Dependencies["@opencode-ai/plugin"] != "beta" {
@@ -123,11 +148,14 @@ func TestOpenCodePackage(t *testing.T) {
 	}
 	source := string(data)
 	for _, required := range []string{
+		`ctx.command.transform`,
+		`name: "x"`,
 		`ctx.session.hook("prompt"`,
 		`ctx.session.get({ sessionID: event.sessionID })`,
 		`session.directory`,
 		`join(root, "bin", process.platform === "win32" ? "x.cmd" : "x")`,
 		`spawnSync(launcherPath()`,
+		`/^\s*\$x(?:\s|$)/u`,
 	} {
 		if !strings.Contains(source, required) {
 			t.Fatalf("OpenCode adapter is missing %q", required)
@@ -136,6 +164,19 @@ func TestOpenCodePackage(t *testing.T) {
 	if strings.Contains(source, "session.location") || strings.Contains(source, "libexec") || strings.Contains(source, "process.arch") {
 		t.Fatal("OpenCode adapter must use the current session directory and delegate architecture selection to the launcher")
 	}
+}
+
+func productVersion(t *testing.T) string {
+	t.Helper()
+	data, err := os.ReadFile("internal/komut/version.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	match := regexp.MustCompile(`const Version = "([^"]+)"`).FindSubmatch(data)
+	if len(match) != 2 {
+		t.Fatal("cannot read product version")
+	}
+	return string(match[1])
 }
 
 func assertMarketplaceEntry(t *testing.T, path, pluginPath string) {

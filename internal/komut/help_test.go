@@ -8,6 +8,11 @@ import (
 	"testing"
 )
 
+const helpBuiltins = "Builtins:\n\n" +
+	":help     List available commands. Aliases: help, ?\n" +
+	":new      Create a command with the agent.\n" +
+	":version  Show the installed Komut version.\n"
+
 func TestHelpListsCommandsWithDescriptionsAndProjectPrecedence(t *testing.T) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
@@ -21,18 +26,18 @@ func TestHelpListsCommandsWithDescriptionsAndProjectPrecedence(t *testing.T) {
 	writeCommand(t, project, "zeta", "No heading here")
 	writeCommand(t, home, "help", "This must never override builtin help")
 
-	got, err := Dispatch(`$x help`, cwd, home)
+	got, err := Dispatch(`$x :help`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "Available Komut commands:\n\n" +
+	want := helpBuiltins + "\nCommands:\n\n" +
 		"alpha        User alpha\n" +
 		"code/review  Project review\n" +
 		"zeta"
 	if got != want {
-		t.Fatalf("Dispatch($x help) = %q, want %q", got, want)
+		t.Fatalf("Dispatch($x :help) = %q, want %q", got, want)
 	}
-	if strings.Contains(got, "User review") || strings.Contains(got, "help\n") {
+	if strings.Contains(got, "User review") || strings.Contains(got, "\nhelp") {
 		t.Fatalf("unexpected shadowed or reserved command in help: %q", got)
 	}
 }
@@ -57,7 +62,7 @@ func TestHelpRecursivelyFindsUserSymlinkCommandsWithoutLooping(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := Dispatch(`$x help`, cwd, home)
+	got, err := Dispatch(`$x`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +93,7 @@ func TestHelpDoesNotFollowProjectSymlinks(t *testing.T) {
 	}
 	writeCommand(t, home, "safe", "# Safe command")
 
-	got, err := Dispatch(`$x help`, cwd, home)
+	got, err := Dispatch(`$x :help`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,13 +111,13 @@ func TestHelpWithNoCommandsShowsAbsoluteCreationPaths(t *testing.T) {
 	cwd := filepath.Join(home, "work", "project")
 	mustMkdirAll(t, cwd)
 
-	got, err := Dispatch(`$x help`, cwd, home)
+	got, err := Dispatch(`$x`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
 	userCommands := filepath.Join(home, ".agents", "commands")
 	projectCommands := filepath.Join(cwd, ".agents", "commands")
-	for _, text := range []string{"No Komut commands found.", userCommands, projectCommands} {
+	for _, text := range []string{"Builtins:", "No Komut commands found.", userCommands, projectCommands} {
 		if !strings.Contains(got, text) {
 			t.Fatalf("help = %q, missing %q", got, text)
 		}
@@ -131,7 +136,7 @@ func TestHelpNoCommandsUsesExistingNearestProjectPath(t *testing.T) {
 	mustMkdirAll(t, projectCommands)
 	mustMkdirAll(t, cwd)
 
-	got, err := Dispatch(`$x help`, cwd, home)
+	got, err := Dispatch(`$x :help`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,10 +156,10 @@ func TestHelpRejectsArgumentsCompositionAndLead(t *testing.T) {
 	writeCommand(t, home, "foo", "Foo")
 
 	for _, input := range []string{
-		`$x help extra`,
+		`$x :help extra`,
 		`$x help + foo`,
-		`$x foo + help`,
-		`$x help -- lead`,
+		`$x foo + ?`,
+		`$x :help -- lead`,
 		`$x help --`,
 	} {
 		t.Run(input, func(t *testing.T) {
@@ -171,12 +176,12 @@ func TestHelpListsMalformedMetadataWithEmptyDescription(t *testing.T) {
 	mustMkdirAll(t, cwd)
 	writeCommand(t, home, "broken", "---\ndescription: [\n---\nBody")
 
-	got, err := Dispatch(`$x help`, cwd, home)
+	got, err := Dispatch(`$x :help`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "Available Komut commands:\n\nbroken" {
-		t.Fatalf("help = %q", got)
+	if want := helpBuiltins + "\nCommands:\n\nbroken"; got != want {
+		t.Fatalf("help = %q, want %q", got, want)
 	}
 
 	_, err = Dispatch(`$x broken`, cwd, home)

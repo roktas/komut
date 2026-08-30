@@ -7,7 +7,7 @@ AI coding agents.
 $x code/review src/foo.go + concise -- Keep the public API stable.
 ```
 
-The same `$x` syntax works across supported hosts. Komut resolves the command
+`$x` is the canonical syntax across supported hosts. Komut resolves command
 files, substitutes arguments, composes the result, and gives the host one final
 prompt for the current turn.
 
@@ -40,65 +40,86 @@ Review $1.
 Pay special attention to correctness and compatibility.
 ```
 
-Invoke it in the agent prompt with:
+Invoke it with:
 
 ```text
 $x review src/foo.go
 ```
 
 YAML frontmatter is optional. When present, it is metadata and is not sent to
-the agent. `description` is used by the builtin help command. Without a
-frontmatter description, help uses the first non-empty ATX Markdown heading in
-the command body, if present.
+the agent. `description` is used by help. Without it, help uses the first
+non-empty ATX Markdown heading in the command body, if present.
 
 Project commands override user commands with the same name. Komut finds the
 nearest project `.agents/commands` directory while walking upward from the
 current working directory.
 
-Command names may contain `/`. A command such as:
+Command names may contain `/`. For example:
 
 ```text
 $x git/review HEAD~3..HEAD
 ```
 
-resolves `git/review` as:
+resolves `git/review` as `commands/git/review.md`.
+
+## Builtins
+
+Builtin control commands use the reserved `:` namespace:
 
 ```text
-commands/git/review.md
+$x :help
+$x :new code/review
+$x :version
 ```
 
-## Help
-
-In the agent prompt, list commands available from the current user and project
-scopes with:
+Help also has these conveniences:
 
 ```text
+$x
 $x help
+$x ?
 ```
 
-Project commands win duplicate names. Help sorts commands by name and shows the
-frontmatter description, first ATX heading, or no description in that order.
-If no commands exist, it shows the absolute user-wide and project command
-directories where commands can be created.
+All four help forms are equivalent. Help lists builtins and the application
+commands visible from the current user and project scopes. Project commands win
+duplicate names. If no application commands exist, help shows the absolute
+user-wide and project directories where they can be created.
 
-`help` is reserved; a `help.md` file cannot override the builtin.
+`:new` does not write files or open an editor. It generates an instruction for
+the current agent to create or edit a command with the agent's normal file tools:
+
+```text
+$x :new code/review
+$x :new --user text/concise
+$x :new git/commit -- Create a Conventional Commits helper.
+```
+
+The default target is project scope. Use `--user` for the user-wide command tree.
+If the command name is omitted, the generated prompt asks the agent to determine
+one with you before writing.
+
+`:version` reports the installed dispatcher version:
+
+```text
+Komut 0.3.0
+```
 
 ## Syntax
 
 The general form is:
 
 ```text
-$x COMMAND [ARGS...] [ + COMMAND [ARGS...] ... ] [ -- LEAD ]
+$x [COMMAND [ARGS...] [ + COMMAND [ARGS...] ... ] [ -- LEAD ]]
 ```
 
-Use `+` to compose commands into one prompt:
+Use `+` to compose application commands into one prompt:
 
 ```text
 $x code/review src/foo.go + concise + lang/turkish
 ```
 
-Use `--` to add free-form lead text. The lead is placed before the rendered
-commands and is not parsed as Komut syntax:
+Use `--` to add free-form lead text. The lead is placed before rendered command
+content and is not parsed as Komut syntax:
 
 ```text
 $x code/review src/foo.go + concise -- Keep the public API stable.
@@ -122,8 +143,7 @@ A referenced positional argument that was not supplied is an error. Komut does
 not perform shell expansion, globbing, environment expansion, or command
 substitution.
 
-See [SPEC.md](SPEC.md) for the complete grammar, resolution rules, metadata
-contract, builtin behavior, and security rules.
+See [SPEC.md](SPEC.md) for the complete protocol and security rules.
 
 ## Install
 
@@ -151,7 +171,7 @@ Start Codex and open the plugin browser:
 Select the **Komut** marketplace, install `komut`, then start a new Codex
 session.
 
-In the Codex prompt, invoke a command with:
+Codex uses the canonical Komut syntax:
 
 ```text
 $x review src/foo.go
@@ -175,14 +195,21 @@ If Claude Code asks you to reload plugins, run:
 /reload-plugins
 ```
 
-In the Claude Code prompt, invoke a command with:
+The plugin exposes the native Claude Code skill command:
 
 ```text
-$x review src/foo.go
+/komut:x review src/foo.go
 ```
 
-Claude Code marketplace documentation:
-<https://code.claude.com/docs/en/discover-plugins>
+With no arguments, `/komut:x` opens Komut help. The canonical `$x ...` syntax
+also works in Claude Code.
+
+Claude Code plugin skills are namespaced by plugin and skill name, hence
+`/komut:x` for the `komut` plugin's `x` skill.
+
+Claude Code documentation:
+<https://code.claude.com/docs/en/skills>
+<https://code.claude.com/docs/en/hooks>
 
 ### OpenCode V2
 
@@ -195,18 +222,21 @@ opencode2 plugin add "github:roktas/komut#dist::path:plugins/opencode"
 
 Restart the OpenCode service or start a new OpenCode session after installation.
 
-In the OpenCode prompt, invoke a command with:
+The plugin registers a native OpenCode command:
 
 ```text
-$x review src/foo.go
+/x review src/foo.go
 ```
 
+With no arguments, `/x` opens Komut help. The canonical `$x ...` syntax also
+works in OpenCode.
+
 OpenCode V2 plugin documentation:
-<https://opencode.ai/v2/docs/plugins>
+<https://opencode.ai/v2/docs/build/plugins/>
 
 ## Supported platforms
 
-The generated packages currently include dispatcher binaries for:
+Generated packages currently include dispatcher binaries for:
 
 - macOS arm64
 - macOS amd64
@@ -214,13 +244,13 @@ The generated packages currently include dispatcher binaries for:
 - Linux amd64
 - Windows amd64
 
-Each host package contains the same dispatcher. Host adapters only connect the
-host prompt lifecycle to that dispatcher.
+Each host package contains the same dispatcher. Host adapters only connect host
+invocation mechanisms to that dispatcher.
 
 ## Development
 
-Komut uses Go 1.26 as its minimum development version. The installed plugin does
-not require Go.
+Komut uses Go 1.26 as its minimum development version. Installed plugins do not
+require Go.
 
 Run the core checks with:
 
@@ -235,7 +265,7 @@ Build all self-contained host packages with:
 sh scripts/build-dist.sh ./dist
 ```
 
-On Linux, smoke-test the generated packages with:
+On Linux, smoke-test generated packages with:
 
 ```sh
 sh scripts/smoke-dist.sh ./dist

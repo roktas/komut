@@ -27,6 +27,46 @@ func TestParseCompositionAndLead(t *testing.T) {
 	}
 }
 
+func TestParseHelpAliases(t *testing.T) {
+	for _, input := range []string{`$x`, `$x   `, `$x help`, `$x ?`, `$x :help`} {
+		t.Run(input, func(t *testing.T) {
+			got, err := Parse(input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := helpInvocation()
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("Parse(%q) = %#v, want %#v", input, got, want)
+			}
+		})
+	}
+}
+
+func TestParseBuiltinNames(t *testing.T) {
+	for _, input := range []string{`$x :new foo`, `$x :version`, `$x :foo-bar2`} {
+		if _, err := Parse(input); err != nil {
+			t.Fatalf("Parse(%q): %v", input, err)
+		}
+	}
+	for _, input := range []string{`$x :`, `$x :Foo`, `$x :foo_bar`, `$x :2foo`} {
+		_, err := Parse(input)
+		assertErrorCode(t, err, ErrInvalidCommand)
+	}
+}
+
+func TestHasInvocationPrefix(t *testing.T) {
+	for _, input := range []string{`$x`, `$x `, `  $x`, `  $x help`} {
+		if !HasInvocationPrefix(input) {
+			t.Errorf("HasInvocationPrefix(%q) = false", input)
+		}
+	}
+	for _, input := range []string{`$xfoo`, `x`, ``} {
+		if HasInvocationPrefix(input) {
+			t.Errorf("HasInvocationPrefix(%q) = true", input)
+		}
+	}
+}
+
 func TestParseQuotedSpecialTokensAreArguments(t *testing.T) {
 	got, err := Parse(`$x explain "+" '--' "a + b"`)
 	if err != nil {
@@ -93,7 +133,6 @@ func TestParseRejectsBadInvocations(t *testing.T) {
 		code ErrorCode
 	}{
 		{name: "prefix boundary", text: `$xfoo bar`, code: ErrInvalidInvocation},
-		{name: "missing command", text: `$x `, code: ErrInvalidInvocation},
 		{name: "leading plus", text: `$x + foo`, code: ErrInvalidInvocation},
 		{name: "trailing plus", text: `$x foo +`, code: ErrInvalidInvocation},
 		{name: "unterminated single quote", text: `$x foo 'bar`, code: ErrUnterminatedQuote},
@@ -117,7 +156,7 @@ func TestParseRejectsInvalidUTF8(t *testing.T) {
 
 func TestValidCommandName(t *testing.T) {
 	valid := []string{"foo", "foo/bar", "foo/bar-baz", "foo2/bar3/baz"}
-	invalid := []string{"", "/foo", "foo/", "foo//bar", "foo/../bar", "foo/./bar", "foo/_bar", "foo/bar_", "foo/ba--r", "Foo/bar"}
+	invalid := []string{"", "help", "/foo", "foo/", "foo//bar", "foo/../bar", "foo/./bar", "foo/_bar", "foo/bar_", "foo/ba--r", "Foo/bar"}
 
 	for _, name := range valid {
 		if !ValidCommandName(name) {
