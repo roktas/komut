@@ -19,7 +19,8 @@ func TestParseCompositionAndLead(t *testing.T) {
 			{Name: "concise"},
 			{Name: "lang/turkish"},
 		},
-		Lead: "This is a public API.",
+		Lead:    "This is a public API.",
+		HasLead: true,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Parse() = %#v, want %#v", got, want)
@@ -53,11 +54,24 @@ func TestParseLeadStopsGrammar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !got.HasLead {
+		t.Fatal("HasLead = false")
+	}
 	if got.Lead != `Explain a + b -- literally "without parsing".` {
 		t.Fatalf("lead = %q", got.Lead)
 	}
 	if len(got.Commands) != 2 {
 		t.Fatalf("commands = %d, want 2", len(got.Commands))
+	}
+}
+
+func TestParseTracksEmptyLeadMarker(t *testing.T) {
+	got, err := Parse(`$x foo --`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.HasLead || got.Lead != "" {
+		t.Fatalf("invocation = %#v", got)
 	}
 }
 

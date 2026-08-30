@@ -31,16 +31,25 @@ Project commands live in:
 For example, create `~/.agents/commands/review.md`:
 
 ```md
+---
+description: Review code for correctness and compatibility.
+---
+
 Review $1.
 
 Pay special attention to correctness and compatibility.
 ```
 
-Invoke it with:
+Invoke it in the agent prompt with:
 
 ```text
 $x review src/foo.go
 ```
+
+YAML frontmatter is optional. When present, it is metadata and is not sent to
+the agent. `description` is used by the builtin help command. Without a
+frontmatter description, help uses the first non-empty ATX Markdown heading in
+the command body, if present.
 
 Project commands override user commands with the same name. Komut finds the
 nearest project `.agents/commands` directory while walking upward from the
@@ -57,6 +66,22 @@ resolves `git/review` as:
 ```text
 commands/git/review.md
 ```
+
+## Help
+
+In the agent prompt, list commands available from the current user and project
+scopes with:
+
+```text
+$x help
+```
+
+Project commands win duplicate names. Help sorts commands by name and shows the
+frontmatter description, first ATX heading, or no description in that order.
+If no commands exist, it shows the absolute user-wide and project command
+directories where commands can be created.
+
+`help` is reserved; a `help.md` file cannot override the builtin.
 
 ## Syntax
 
@@ -97,8 +122,8 @@ A referenced positional argument that was not supplied is an error. Komut does
 not perform shell expansion, globbing, environment expansion, or command
 substitution.
 
-See [SPEC.md](SPEC.md) for the complete grammar, resolution rules, and security
-contract.
+See [SPEC.md](SPEC.md) for the complete grammar, resolution rules, metadata
+contract, builtin behavior, and security rules.
 
 ## Install
 

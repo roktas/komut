@@ -9,6 +9,7 @@ import (
 type Invocation struct {
 	Commands []Command
 	Lead     string
+	HasLead  bool
 }
 
 type Command struct {
@@ -54,6 +55,7 @@ func Parse(input string) (Invocation, error) {
 		if p.specialToken("--") {
 			p.pos += 2
 			p.skipSpace()
+			invocation.HasLead = true
 			invocation.Lead = p.input[p.pos:]
 			return invocation, nil
 		}
@@ -221,7 +223,7 @@ func ValidCommandName(name string) bool {
 		return false
 	}
 
-	for _, segment := range strings.Split(name, "/") {
+	for segment := range strings.SplitSeq(name, "/") {
 		if !validSegment(segment) {
 			return false
 		}

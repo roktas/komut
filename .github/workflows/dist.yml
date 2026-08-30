@@ -13,6 +13,7 @@ on:
       - "plugins/**"
       - "scripts/**"
       - "go.mod"
+      - "go.sum"
       - ".github/workflows/dist.yml"
   workflow_dispatch:
 

@@ -9,7 +9,12 @@ home="$tmp/home"
 project="$home/project"
 commands="$project/.agents/commands"
 mkdir -p "$commands"
-printf '%s' 'Hello $1' > "$commands/hello.md"
+cat > "$commands/hello.md" <<'EOF'
+---
+description: Friendly hello
+---
+Hello $1
+EOF
 
 for plugin in codex claude opencode; do
         output=$(
@@ -20,6 +25,13 @@ for plugin in codex claude opencode; do
                 echo "smoke: $plugin launcher returned: $output" >&2
                 exit 1
         fi
+
+        help=$(
+                cd "$project"
+                HOME="$home" "$dist/plugins/$plugin/bin/x" '$x help'
+        )
+        printf '%s' "$help" | grep -F 'hello' >/dev/null
+        printf '%s' "$help" | grep -F 'Friendly hello' >/dev/null
 done
 
 payload=$(printf '{"prompt":"$x hello world","cwd":"%s"}' "$project")

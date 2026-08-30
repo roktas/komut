@@ -11,17 +11,31 @@ import (
 )
 
 type Resolver struct {
+	cwd             string
 	projectCommands string
 	userCommands    string
 }
 
 func NewResolver(cwd, home string) (*Resolver, error) {
+	cwd, err := filepath.Abs(cwd)
+	if err != nil {
+		return nil, fail(ErrInvalidCommandFile, "", fmt.Sprintf("cannot resolve working directory: %v", err))
+	}
+	home, err = filepath.Abs(home)
+	if err != nil {
+		return nil, fail(ErrInvalidCommandFile, "", fmt.Sprintf("cannot resolve home directory: %v", err))
+	}
 	projectCommands, err := findProjectCommands(cwd, home)
 	if err != nil {
 		return nil, err
 	}
-	return &Resolver{projectCommands: projectCommands, userCommands: filepath.Join(home, ".agents", "commands")}, nil
+	return &Resolver{
+		cwd:             cwd,
+		projectCommands: projectCommands,
+		userCommands:    filepath.Join(home, ".agents", "commands"),
+	}, nil
 }
+
 func (r *Resolver) Read(name string) (string, error) {
 	if !ValidCommandName(name) {
 		return "", fail(ErrInvalidCommand, name, "invalid command name")
@@ -44,6 +58,7 @@ func (r *Resolver) Read(name string) (string, error) {
 	}
 	return content, nil
 }
+
 func findProjectCommands(cwd, home string) (string, error) {
 	current, err := filepath.Abs(cwd)
 	if err != nil {
@@ -80,6 +95,7 @@ func findProjectCommands(cwd, home string) (string, error) {
 	}
 	return "", nil
 }
+
 func readProjectCommand(root, name string) (string, bool, error) {
 	parts := strings.Split(name, "/")
 	current := root
@@ -113,6 +129,7 @@ func readProjectCommand(root, name string) (string, bool, error) {
 	}
 	return content, true, nil
 }
+
 func readUserCommand(root, name string) (string, bool, error) {
 	path := filepath.Join(root, filepath.FromSlash(name)+".md")
 	info, err := os.Stat(path)
@@ -131,6 +148,7 @@ func readUserCommand(root, name string) (string, bool, error) {
 	}
 	return content, true, nil
 }
+
 func readValidFile(path, name string, expected os.FileInfo, changedCode ErrorCode) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -158,6 +176,7 @@ func readValidFile(path, name string, expected os.FileInfo, changedCode ErrorCod
 	}
 	return string(data), nil
 }
+
 func samePath(a, b string) bool {
 	a = filepath.Clean(a)
 	b = filepath.Clean(b)
@@ -166,6 +185,7 @@ func samePath(a, b string) bool {
 	}
 	return a == b
 }
+
 func pathHasNonDirectoryParent(path string) bool {
 	for {
 		parent := filepath.Dir(path)
