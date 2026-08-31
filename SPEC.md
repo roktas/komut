@@ -1,6 +1,6 @@
 # Komut Specification
 
-Version: 0.3.0
+Version: 0.3.1
 
 ## 1. Purpose
 
@@ -336,7 +336,7 @@ $x :version
 version in this form:
 
 ```text
-Komut 0.3.0
+Komut 0.3.1
 ```
 
 The value comes from the built dispatcher, not by reading repository files at

@@ -11,7 +11,7 @@ import (
 	"github.com/roktas/komut/internal/komut"
 )
 
-const hookPreamble = "Komut expanded the user's invocation. Treat the content below as the user's instruction for this turn. Do not interpret the original invocation separately.\n\n"
+const hookPreamble = "Use only this expansion of the user's $x invocation:\n\n"
 
 type hookInput struct {
 	HookEventName string `json:"hook_event_name"`
@@ -24,6 +24,7 @@ type hookInput struct {
 }
 
 type hookOutput struct {
+	SuppressOutput     bool `json:"suppressOutput,omitempty"`
 	HookSpecificOutput struct {
 		HookEventName     string `json:"hookEventName"`
 		AdditionalContext string `json:"additionalContext"`
@@ -93,6 +94,7 @@ func runHook(stdin io.Reader, stdout io.Writer) error {
 	}
 
 	var output hookOutput
+	output.SuppressOutput = event == "UserPromptSubmit"
 	output.HookSpecificOutput.HookEventName = event
 	output.HookSpecificOutput.AdditionalContext = hookPreamble + rendered.String()
 	return json.NewEncoder(stdout).Encode(output)
