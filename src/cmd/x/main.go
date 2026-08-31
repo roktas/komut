@@ -94,7 +94,7 @@ func runHook(stdin io.Reader, stdout io.Writer) error {
 	}
 
 	var output hookOutput
-	output.SuppressOutput = event == "UserPromptSubmit"
+	output.SuppressOutput = event == "UserPromptSubmit" && os.Getenv("KOMUT_HOOK_HOST") != "claude"
 	output.HookSpecificOutput.HookEventName = event
 	output.HookSpecificOutput.AdditionalContext = hookPreamble + rendered.String()
 	return json.NewEncoder(stdout).Encode(output)
