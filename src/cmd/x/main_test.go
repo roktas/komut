@@ -41,7 +41,7 @@ func TestHookNonInvocationIsNoop(t *testing.T) {
 }
 
 func TestHookMalformedInputFails(t *testing.T) {
-	for _, input := range []string{`{`, `{"prompt":"$x","cwd":"/tmp"} {}`} {
+	for _, input := range []string{`{`, `{"prompt":"$x","cwd":"/tmp"} {`} {
 		var out strings.Builder
 		if err := run([]string{"--hook"}, strings.NewReader(input), &out); err == nil {
 			t.Fatalf("run(%q) error = nil", input)
@@ -73,6 +73,9 @@ func TestHookDispatchesUserPromptSubmitUsingPayloadCWD(t *testing.T) {
 	if got.HookSpecificOutput.HookEventName != "UserPromptSubmit" {
 		t.Fatalf("hook event = %q", got.HookSpecificOutput.HookEventName)
 	}
+	if !got.SuppressOutput {
+		t.Fatal("suppressOutput = false, want true")
+	}
 	if want := hookPreamble + "Hello world"; got.HookSpecificOutput.AdditionalContext != want {
 		t.Fatalf("additional context = %q, want %q", got.HookSpecificOutput.AdditionalContext, want)
 	}
@@ -93,6 +96,9 @@ func TestHookUserPromptSubmitExactXShowsHelp(t *testing.T) {
 
 	input := `{"prompt":"$x","cwd":` + quoteJSON(project) + `}`
 	got := runHookOutput(t, input)
+	if !got.SuppressOutput {
+		t.Fatal("suppressOutput = false, want true")
+	}
 	if !strings.Contains(got.HookSpecificOutput.AdditionalContext, "Builtins:") {
 		t.Fatalf("additional context = %q", got.HookSpecificOutput.AdditionalContext)
 	}
@@ -107,6 +113,9 @@ func TestHookDispatchesClaudePromptExpansion(t *testing.T) {
 	got := runHookOutput(t, input)
 	if got.HookSpecificOutput.HookEventName != "UserPromptExpansion" {
 		t.Fatalf("hook event = %q", got.HookSpecificOutput.HookEventName)
+	}
+	if got.SuppressOutput {
+		t.Fatal("suppressOutput = true for UserPromptExpansion")
 	}
 	if want := hookPreamble + "Hello world"; got.HookSpecificOutput.AdditionalContext != want {
 		t.Fatalf("additional context = %q, want %q", got.HookSpecificOutput.AdditionalContext, want)
