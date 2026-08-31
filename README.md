@@ -91,14 +91,15 @@ normal file tools:
 
 ```text
 $x :new code/review
-$x :new text/concise --user
+$x :new code/review --project
 $x :new git/commit -- Create a Conventional Commits helper.
+$x :new review --project -- Review code for correctness and compatibility.
 ```
 
-The command name is required and is always the first argument. Use `--user` or
-`--project` after the name to select scope explicitly. Outside the user home, the
-default target is project scope. When invoked from the user home, the default is
-the user-wide command tree, so `--user` is unnecessary there.
+The command name is required and is always the first argument. New commands are
+user-wide by default and target `~/.agents/commands/`. Use `--project` after the
+name only when the command should belong to the current project. `--user` is not
+supported because user scope is already the default.
 
 Text after `--` is the optional one-line command description. If it is omitted,
 the generated prompt asks the user for a description. The agent always asks the
@@ -170,17 +171,17 @@ your existing Git credentials.
 Add the Komut marketplace and install the plugin from the command line:
 
 ```sh
-codex plugin marketplace add roktas/komut
-codex plugin add komut@komut
+codex plugin marketplace add roktas/komut && \
+        codex plugin add komut@komut
 ```
 
 Start a new Codex session after installation.
 
-To update Komut later, refresh its marketplace snapshot and reinstall the plugin:
+To update Komut later, refresh its marketplace snapshot and plugin installation:
 
 ```sh
-codex plugin marketplace upgrade komut
-codex plugin add komut@komut
+codex plugin marketplace upgrade komut && \
+        codex plugin add komut@komut
 ```
 
 Codex uses the canonical Komut syntax:
@@ -197,8 +198,8 @@ Codex marketplace documentation:
 Check out the generated distribution branch and install its Antigravity plugin:
 
 ```sh
-git clone --branch dist --single-branch https://github.com/roktas/komut.git komut-dist
-agy plugin install ./komut-dist/plugins/antigravity
+git clone --branch dist --single-branch https://github.com/roktas/komut.git komut-dist && \
+        agy plugin install ./komut-dist/plugins/antigravity
 ```
 
 For Antigravity 2.0 without the CLI, copy
@@ -294,8 +295,7 @@ require Go.
 Run the core checks with:
 
 ```sh
-go -C src test -race ./...
-go -C src vet ./...
+go -C src test -race ./... && go -C src vet ./...
 ```
 
 Run repository-level product and integration tests with:
