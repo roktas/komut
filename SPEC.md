@@ -279,25 +279,23 @@ commands require a project working directory.
 launches an editor.
 
 ```text
-$x :new COMMAND [--user | --project] [ -- DESCRIPTION ]
+$x :new COMMAND [--project] [ -- DESCRIPTION ]
 ```
 
 `COMMAND` is required, must be the first argument, and must be a valid
-non-reserved application command name. Scope flags may follow the command name.
-Supplying both scope flags is invalid. Other positional arguments are invalid;
-free-form description text belongs after the global `--` marker.
+non-reserved application command name. User scope is the default everywhere.
+`--project` may follow the command name to select project scope explicitly.
+`--user` is not supported. Other positional arguments are invalid; free-form
+description text belongs after the global `--` marker.
 
-Outside the user home, default scope is project. `--user` selects user scope and
-`--project` selects project scope explicitly. When `cwd` is the user home and no
-scope flag is supplied, default scope is user. Explicit project scope remains
-unavailable there because its prospective project directory would be the user
-command tree.
+Project scope is unavailable when `cwd` is the user home because its prospective
+project directory would be the user command tree.
 
 Examples:
 
 ```text
 $x :new code/review
-$x :new text/concise --user
+$x :new code/review --project
 $x :new git/commit -- Create a Conventional Commits helper.
 $x :new review --project -- Review code for correctness and compatibility.
 ```
@@ -319,7 +317,7 @@ directories to be created when needed, and requires an existing target to be
 inspected before changing it. The host agent must not invent a missing
 description or body.
 
-If no project command tree exists yet, `:new` may target
+If no project command tree exists yet, explicit project scope may target
 `<cwd>/.agents/commands`. Before generating that project target, Komut checks any
 existing `.agents` and `commands` path components. A symlink or unexpected path
 type is unsafe and fails closed.
@@ -368,9 +366,10 @@ The selected project command must remain in the selected project command tree.
 User-scope symlinks are allowed, but the final selected target must be a readable
 regular file. Unsafe or malformed paths fail closed.
 
-`:new` computes target paths only and does not open or write them. When it would
-establish a new project command tree, it applies the project path safety rules to
-existing path components before generating the authoring prompt.
+`:new` computes target paths only and does not open or write them. When explicit
+project scope would establish a new project command tree, it applies the project
+path safety rules to existing path components before generating the authoring
+prompt.
 
 ## 10. Host adapters
 
@@ -459,11 +458,11 @@ Tests must verify at least:
 - `$x`, `$x help`, `$x ?`, and `$x :help` resolve to the same help builtin;
 - `$xfoo` remains invalid;
 - builtin names use the `:` namespace and cannot be composed;
-- `:new` requires the command name first, always targets a `.md` file, generates
-  project/user authoring prompts without filesystem mutation, accepts description
-  after `--`, and asks for missing description plus the command body;
-- project `:new` rejects unsafe prospective path components, defaults to user
-  scope at the user home, and rejects explicit project scope there;
+- `:new` requires the command name first, defaults to user scope, supports only
+  explicit `--project` scope selection, always targets a `.md` file, accepts a
+  description after `--`, and asks for missing description plus the command body;
+- explicit project `:new` rejects unsafe prospective path components and rejects
+  project scope at the user home;
 - `:version` reports the built product version and rejects args/lead;
 - quoting, composition, global `--`, substitutions, and missing arguments;
 - project-over-user precedence and nearest-project scope boundaries;
