@@ -100,11 +100,18 @@ func reservedApplicationName(name string) bool {
 }
 
 func newPrompt(args []string, invocation Invocation, resolver *Resolver) (string, error) {
+	if len(args) == 0 {
+		return "", fail(ErrInvalidInvocation, builtinNew, "command name is required as the first argument")
+	}
+
+	name := args[0]
+	if !ValidCommandName(name) {
+		return "", fail(ErrInvalidCommand, name, "invalid or reserved application command name")
+	}
+
 	scope := "project"
 	scopeSet := false
-	name := ""
-
-	for _, arg := range args {
+	for _, arg := range args[1:] {
 		switch arg {
 		case "--user", "--project":
 			selected := strings.TrimPrefix(arg, "--")
@@ -114,14 +121,14 @@ func newPrompt(args []string, invocation Invocation, resolver *Resolver) (string
 			scope = selected
 			scopeSet = true
 		default:
-			if name != "" {
-				return "", fail(ErrInvalidInvocation, builtinNew, "expected at most one command name")
-			}
-			if !ValidCommandName(arg) {
-				return "", fail(ErrInvalidCommand, arg, "invalid or reserved application command name")
-			}
-			name = arg
+			return "", fail(ErrInvalidInvocation, builtinNew, "only --user or --project may follow the command name; put the description after --")
 		}
+	}
+
+	home := filepath.Dir(filepath.Dir(resolver.userCommands))
+	atHome := samePath(resolver.cwd, home)
+	if !scopeSet && atHome {
+		scope = "user"
 	}
 
 	var root string
@@ -135,30 +142,30 @@ func newPrompt(args []string, invocation Invocation, resolver *Resolver) (string
 		}
 	}
 
+	target := filepath.Join(root, filepath.FromSlash(name)+".md")
+	description := strings.TrimSpace(invocation.Lead)
+
 	var b strings.Builder
 	b.WriteString("Author a Komut command using the host agent's normal file-reading and file-editing tools.\n\n")
 	fmt.Fprintf(&b, "Scope: %s\n", scope)
-	if name == "" {
-		fmt.Fprintf(&b, "Target directory: %s\n", root)
-		b.WriteString("Command name: not specified; determine a valid name with the user before writing.\n")
+	fmt.Fprintf(&b, "Command name: %s\n", name)
+	fmt.Fprintf(&b, "Target file: %s\n", target)
+	if description == "" {
+		b.WriteString("Description: not specified; ask the user for a one-line command description before writing.\n")
 	} else {
-		fmt.Fprintf(&b, "Command name: %s\n", name)
-		fmt.Fprintf(&b, "Target file: %s\n", filepath.Join(root, filepath.FromSlash(name)+".md"))
+		fmt.Fprintf(&b, "Description: %s\n", description)
 	}
+	b.WriteString("Command body: ask the user for the Markdown prompt body before writing.\n")
 
 	b.WriteString("\nCommand file rules:\n")
+	b.WriteString("- Write exactly the target file above. Its filename must end in `.md`; do not create an extensionless command file.\n")
 	b.WriteString("- Create parent directories when needed.\n")
-	b.WriteString("- Optional YAML frontmatter may contain a one-line `description`.\n")
-	b.WriteString("- The Markdown body is the prompt template.\n")
+	b.WriteString("- Start the Markdown file with YAML frontmatter containing the one-line `description`.\n")
+	b.WriteString("- Put the command prompt template in the Markdown body after the frontmatter.\n")
 	b.WriteString("- Templates may use `$1` through `$9`, `$*`, and `$$`.\n")
 	b.WriteString("- Inspect an existing target file before changing it.\n")
-	b.WriteString("- Ask the user when important command behavior is missing; do not invent it.\n")
+	b.WriteString("- Ask the user for the description when it was not supplied and always ask for the command body; do not invent either.\n")
 	b.WriteString("- Do not launch an external editor; use the host agent's ordinary editing tools.\n")
-
-	if invocation.HasLead && invocation.Lead != "" {
-		b.WriteString("\nUser authoring intent:\n")
-		b.WriteString(invocation.Lead)
-	}
 
 	return b.String(), nil
 }
@@ -173,7 +180,7 @@ func projectAuthoringRoot(resolver *Resolver) (string, error) {
 		return "", fail(
 			ErrInvalidInvocation,
 			builtinNew,
-			"project scope is unavailable at the user home; use --user or run from a project directory",
+			"project scope is unavailable at the user home; omit --project for user scope or run from a project directory",
 		)
 	}
 
