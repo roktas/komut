@@ -93,8 +93,8 @@ $x code/review src/foo.go + concise -- Keep the public API stable.
 ```
 
 A non-empty lead is placed before rendered application command content. A builtin
-may define its own lead behavior. `:new` accepts lead as authoring intent;
-`:help` and `:version` reject lead text.
+may define its own lead behavior. `:new` uses lead text as the optional one-line
+command description; `:help` and `:version` reject lead text.
 
 ### 3.3 Quoting
 
@@ -279,48 +279,52 @@ commands require a project working directory.
 launches an editor.
 
 ```text
-$x :new [--user | --project] [COMMAND] [ -- LEAD ]
+$x :new COMMAND [--user | --project] [ -- DESCRIPTION ]
 ```
 
-Default scope is project. `--user` selects user scope; `--project` selects project
-scope explicitly. Supplying both is invalid. `COMMAND` is optional; when present
-it must be a valid non-reserved application command name.
+`COMMAND` is required, must be the first argument, and must be a valid
+non-reserved application command name. Scope flags may follow the command name.
+Supplying both scope flags is invalid. Other positional arguments are invalid;
+free-form description text belongs after the global `--` marker.
 
-Project scope is unavailable when `cwd` is the user home because the prospective
-project command directory would be the user command directory. In that case,
-`:new` requires `--user` or a project working directory.
+Outside the user home, default scope is project. `--user` selects user scope and
+`--project` selects project scope explicitly. When `cwd` is the user home and no
+scope flag is supplied, default scope is user. Explicit project scope remains
+unavailable there because its prospective project directory would be the user
+command tree.
 
 Examples:
 
 ```text
 $x :new code/review
-$x :new --user text/concise
+$x :new text/concise --user
 $x :new git/commit -- Create a Conventional Commits helper.
-$x :new -- Write a command that reviews API compatibility.
+$x :new review --project -- Review code for correctness and compatibility.
 ```
 
-When a name is supplied, the generated prompt includes the absolute target `.md`
-path. Without a name it includes the target directory and asks the agent to agree
-a valid name with the user before writing.
+The generated prompt always includes the absolute target Markdown file path. The
+path is formed from the command name and always ends in `.md`; an authoring agent
+must not create an extensionless command file.
+
+Description text after `--`, when present and non-empty, is the command's one-line
+description. When description is omitted, the generated prompt instructs the host
+agent to ask the user for it before writing. The generated prompt always instructs
+the agent to ask the user for the Markdown command body before writing, regardless
+of whether a description was supplied.
+
+New commands authored through `:new` use YAML frontmatter containing the
+`description`, followed by the Markdown body as the prompt template. The prompt
+also communicates `$1` through `$9`, `$*`, and `$$` substitutions, requires parent
+directories to be created when needed, and requires an existing target to be
+inspected before changing it. The host agent must not invent a missing
+description or body.
 
 If no project command tree exists yet, `:new` may target
 `<cwd>/.agents/commands`. Before generating that project target, Komut checks any
 existing `.agents` and `commands` path components. A symlink or unexpected path
 type is unsafe and fails closed.
 
-The generated prompt instructs the host agent to use its normal file tools and
-communicates at least:
-
-- selected scope and target directory or file;
-- optional YAML `description` metadata;
-- Markdown body as the prompt template;
-- `$1` through `$9`, `$*`, and `$$` substitutions;
-- create parent directories when needed;
-- inspect an existing target before changing it;
-- ask for missing important intent rather than inventing behavior.
-
-Lead text, when present, is included as the user's authoring intent. Filesystem
-mutation and approvals remain the host agent's responsibility.
+Filesystem mutation and approvals remain the host agent's responsibility.
 
 ### 7.3 `:version`
 
@@ -455,9 +459,11 @@ Tests must verify at least:
 - `$x`, `$x help`, `$x ?`, and `$x :help` resolve to the same help builtin;
 - `$xfoo` remains invalid;
 - builtin names use the `:` namespace and cannot be composed;
-- `:new` generates project/user authoring prompts without filesystem mutation;
-- project `:new` rejects unsafe prospective path components and does not confuse
-  the user command tree with project scope at the user home;
+- `:new` requires the command name first, always targets a `.md` file, generates
+  project/user authoring prompts without filesystem mutation, accepts description
+  after `--`, and asks for missing description plus the command body;
+- project `:new` rejects unsafe prospective path components, defaults to user
+  scope at the user home, and rejects explicit project scope there;
 - `:version` reports the built product version and rejects args/lead;
 - quoting, composition, global `--`, substitutions, and missing arguments;
 - project-over-user precedence and nearest-project scope boundaries;
