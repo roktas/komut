@@ -104,7 +104,15 @@ func TestDispatchTreatsSymlinkAliasAsUserHome(t *testing.T) {
 		t.Fatalf("Dispatch() = %q", got)
 	}
 
-	_, err = Dispatch(`$x :new review`, home, homeAlias)
+	got, err = Dispatch(`$x :new review`, home, homeAlias)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "Scope: user") || !strings.Contains(got, filepath.Join(homeAlias, ".agents", "commands", "review.md")) {
+		t.Fatalf("new home-alias prompt = %q", got)
+	}
+
+	_, err = Dispatch(`$x :new review --project`, home, homeAlias)
 	assertErrorCode(t, err, ErrInvalidInvocation)
 }
 
@@ -165,9 +173,9 @@ func TestProjectCommandSymlinkIsRejected(t *testing.T) {
 	commands := filepath.Join(project, ".agents", "commands")
 	mustMkdirAll(t, commands)
 	mustMkdirAll(t, cwd)
-	secret := filepath.Join(base, "secret.txt")
-	mustWriteFile(t, secret, []byte("do not read"))
-	if err := os.Symlink(secret, filepath.Join(commands, "review.md")); err != nil {
+	outsideFile := filepath.Join(base, "outside.txt")
+	mustWriteFile(t, outsideFile, []byte("outside command"))
+	if err := os.Symlink(outsideFile, filepath.Join(commands, "review.md")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -188,7 +196,7 @@ func TestProjectNestedDirectorySymlinkIsRejected(t *testing.T) {
 	mustMkdirAll(t, commands)
 	mustMkdirAll(t, cwd)
 	mustMkdirAll(t, outside)
-	mustWriteFile(t, filepath.Join(outside, "review.md"), []byte("do not read"))
+	mustWriteFile(t, filepath.Join(outside, "review.md"), []byte("outside command"))
 	if err := os.Symlink(outside, filepath.Join(commands, "code")); err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +218,7 @@ func TestProjectAgentsAndCommandsSymlinksAreRejected(t *testing.T) {
 		outsideAgents := filepath.Join(base, "outside-agents")
 		mustMkdirAll(t, filepath.Join(outsideAgents, "commands"))
 		mustMkdirAll(t, cwd)
-		mustWriteFile(t, filepath.Join(outsideAgents, "commands", "review.md"), []byte("do not read"))
+		mustWriteFile(t, filepath.Join(outsideAgents, "commands", "review.md"), []byte("outside command"))
 		if err := os.Symlink(outsideAgents, filepath.Join(project, ".agents")); err != nil {
 			t.Fatal(err)
 		}
@@ -227,7 +235,7 @@ func TestProjectAgentsAndCommandsSymlinksAreRejected(t *testing.T) {
 		mustMkdirAll(t, filepath.Join(project, ".agents"))
 		mustMkdirAll(t, cwd)
 		mustMkdirAll(t, outside)
-		mustWriteFile(t, filepath.Join(outside, "review.md"), []byte("do not read"))
+		mustWriteFile(t, filepath.Join(outside, "review.md"), []byte("outside command"))
 		if err := os.Symlink(outside, filepath.Join(project, ".agents", "commands")); err != nil {
 			t.Fatal(err)
 		}
