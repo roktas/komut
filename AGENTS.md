@@ -15,6 +15,12 @@ Keep one source of truth for Komut semantics.
   prototype unless explicitly requested.
 - Prefer deleting obsolete design remnants over preserving them as legacy notes.
 
+## Git workflow
+
+- Unless explicitly requested otherwise, work directly on `main` and do not create a task branch.
+- If a task branch is created, delete it after merging, both locally and from the remote when applicable.
+- Keep only intentionally long-lived branches, currently `main` and `dist`.
+
 ## Layout
 
 - `src/` contains implementation source; host adapters are in `src/adapters/`.
