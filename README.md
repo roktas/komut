@@ -110,7 +110,7 @@ ends in `.md`.
 `:version` reports the installed dispatcher version:
 
 ```text
-Komut 0.3.0
+Komut 0.3.1
 ```
 
 ## Syntax
