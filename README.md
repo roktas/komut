@@ -168,7 +168,7 @@ your existing Git credentials.
 
 ### Codex
 
-Add the Komut marketplace and install the plugin from the command line:
+Install Komut entirely from the shell:
 
 ```sh
 codex plugin marketplace add roktas/komut && \
@@ -177,7 +177,7 @@ codex plugin marketplace add roktas/komut && \
 
 Start a new Codex session after installation.
 
-To update Komut later, refresh its marketplace snapshot and plugin installation:
+Update Komut with:
 
 ```sh
 codex plugin marketplace upgrade komut && \
@@ -195,16 +195,26 @@ Codex marketplace documentation:
 
 ### Google Antigravity
 
-Check out the generated distribution branch and install its Antigravity plugin:
+Install the generated Antigravity plugin from the shell:
 
 ```sh
 git clone --branch dist --single-branch https://github.com/roktas/komut.git komut-dist && \
         agy plugin install ./komut-dist/plugins/antigravity
 ```
 
+Start a new Antigravity session after installation.
+
+Antigravity does not currently document a separate plugin-update command. Update
+the distribution checkout and reinstall the staged plugin:
+
+```sh
+git -C komut-dist pull --ff-only origin dist && \
+        agy plugin uninstall komut && \
+        agy plugin install ./komut-dist/plugins/antigravity
+```
+
 For Antigravity 2.0 without the CLI, copy
-`komut-dist/plugins/antigravity` to `~/.gemini/config/plugins/komut`. Start a new
-session after installing either form.
+`komut-dist/plugins/antigravity` to `~/.gemini/config/plugins/komut`.
 
 The plugin exposes the native Antigravity skill command:
 
@@ -222,17 +232,20 @@ Antigravity plugin documentation:
 
 ### Claude Code
 
-Inside Claude Code, add the marketplace and install Komut:
+Install Komut entirely from the shell:
 
-```text
-/plugin marketplace add roktas/komut
-/plugin install komut@komut
+```sh
+claude plugin marketplace add roktas/komut && \
+        claude plugin install komut@komut
 ```
 
-If Claude Code asks you to reload plugins, run:
+Start a new Claude Code session after installation.
 
-```text
-/reload-plugins
+Update Komut with:
+
+```sh
+claude plugin marketplace update komut && \
+        claude plugin update komut@komut
 ```
 
 The plugin exposes the native Claude Code skill command:
@@ -248,19 +261,27 @@ Claude Code plugin skills are namespaced by plugin and skill name, hence
 `/komut:x` for the `komut` plugin's `x` skill.
 
 Claude Code documentation:
-<https://code.claude.com/docs/en/skills>
-<https://code.claude.com/docs/en/hooks>
+<https://code.claude.com/docs/en/discover-plugins>
+<https://code.claude.com/docs/en/plugins-reference>
 
 ### OpenCode V2
 
-Komut currently targets the OpenCode V2 plugin API. Install the generated
-OpenCode package directly from the `dist` branch:
+Install the generated OpenCode package from the shell:
 
 ```sh
 opencode2 plugin add "github:roktas/komut#dist::path:plugins/opencode"
 ```
 
 Restart the OpenCode service or start a new OpenCode session after installation.
+
+Unpinned Git plugins are refreshed in the background when OpenCode starts. For a
+deterministic immediate update, reinstall the package and restart the service:
+
+```sh
+opencode2 plugin remove "github:roktas/komut#dist::path:plugins/opencode" && \
+        opencode2 plugin add "github:roktas/komut#dist::path:plugins/opencode" && \
+        opencode2 service restart
+```
 
 The plugin registers a native OpenCode command:
 
@@ -272,6 +293,7 @@ With no arguments, `/x` opens Komut help. The canonical `$x ...` syntax also
 works in OpenCode.
 
 OpenCode V2 plugin documentation:
+<https://opencode.ai/v2/docs/plugins>
 <https://opencode.ai/v2/docs/build/plugins/>
 
 ## Supported platforms
