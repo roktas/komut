@@ -109,26 +109,15 @@ func newPrompt(args []string, invocation Invocation, resolver *Resolver) (string
 		return "", fail(ErrInvalidCommand, name, "invalid or reserved application command name")
 	}
 
-	scope := "project"
-	scopeSet := false
-	for _, arg := range args[1:] {
-		switch arg {
-		case "--user", "--project":
-			selected := strings.TrimPrefix(arg, "--")
-			if scopeSet && selected != scope {
-				return "", fail(ErrInvalidInvocation, builtinNew, "choose only one of --user or --project")
-			}
-			scope = selected
-			scopeSet = true
-		default:
-			return "", fail(ErrInvalidInvocation, builtinNew, "only --user or --project may follow the command name; put the description after --")
-		}
+	scope := "user"
+	if len(args) > 2 {
+		return "", fail(ErrInvalidInvocation, builtinNew, "only --project may follow the command name; put the description after --")
 	}
-
-	home := filepath.Dir(filepath.Dir(resolver.userCommands))
-	atHome := samePath(resolver.cwd, home)
-	if !scopeSet && atHome {
-		scope = "user"
+	if len(args) == 2 {
+		if args[1] != "--project" {
+			return "", fail(ErrInvalidInvocation, builtinNew, "only --project may follow the command name; put the description after --")
+		}
+		scope = "project"
 	}
 
 	var root string

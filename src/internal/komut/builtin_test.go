@@ -82,19 +82,19 @@ func TestHelpListsBuiltinRegistry(t *testing.T) {
 	}
 }
 
-func TestNewGeneratesProjectPromptWithoutMutation(t *testing.T) {
+func TestNewDefaultsToUserScopeWithoutMutation(t *testing.T) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
 	cwd := filepath.Join(home, "work", "project")
 	mustMkdirAll(t, cwd)
-	target := filepath.Join(cwd, ".agents", "commands", "code", "review.md")
+	target := filepath.Join(home, ".agents", "commands", "code", "review.md")
 
 	got, err := Dispatch(`$x :new code/review -- Review API compatibility.`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, text := range []string{
-		"Scope: project",
+		"Scope: user",
 		target,
 		"Description: Review API compatibility.",
 		"Command body: ask the user",
@@ -111,14 +111,30 @@ func TestNewGeneratesProjectPromptWithoutMutation(t *testing.T) {
 	}
 }
 
-func TestNewUserScopeAndMissingDescription(t *testing.T) {
+func TestNewProjectScopeIsExplicit(t *testing.T) {
+	base := t.TempDir()
+	home := filepath.Join(base, "home")
+	cwd := filepath.Join(home, "work", "project")
+	mustMkdirAll(t, cwd)
+	target := filepath.Join(cwd, ".agents", "commands", "code", "review.md")
+
+	got, err := Dispatch(`$x :new code/review --project -- Review API compatibility.`, cwd, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "Scope: project") || !strings.Contains(got, target) {
+		t.Fatalf("new project prompt = %q", got)
+	}
+}
+
+func TestNewAsksForMissingDescriptionAndBody(t *testing.T) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
 	cwd := filepath.Join(home, "work")
 	mustMkdirAll(t, cwd)
 	target := filepath.Join(home, ".agents", "commands", "text", "concise.md")
 
-	got, err := Dispatch(`$x :new text/concise --user`, cwd, home)
+	got, err := Dispatch(`$x :new text/concise`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,19 +150,10 @@ func TestNewUserScopeAndMissingDescription(t *testing.T) {
 	}
 }
 
-func TestNewDefaultsToUserScopeAtUserHome(t *testing.T) {
+func TestNewRejectsProjectScopeAtUserHome(t *testing.T) {
 	home := t.TempDir()
-	target := filepath.Join(home, ".agents", "commands", "review.md")
 
-	got, err := Dispatch(`$x :new review`, home, home)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(got, "Scope: user") || !strings.Contains(got, target) {
-		t.Fatalf("new home prompt = %q", got)
-	}
-
-	_, err = Dispatch(`$x :new review --project`, home, home)
+	_, err := Dispatch(`$x :new review --project`, home, home)
 	assertErrorCode(t, err, ErrInvalidInvocation)
 }
 
@@ -162,7 +169,7 @@ func TestNewRejectsUnsafeProjectAuthoringPath(t *testing.T) {
 		t.Skipf("cannot create symlink: %v", err)
 	}
 
-	_, err := Dispatch(`$x :new review`, cwd, home)
+	_, err := Dispatch(`$x :new review --project`, cwd, home)
 	assertErrorCode(t, err, ErrUnsafeProjectPath)
 }
 
@@ -175,7 +182,8 @@ func TestNewRejectsInvalidOptionsAndNames(t *testing.T) {
 	for _, input := range []string{
 		`$x :new`,
 		`$x :new --user`,
-		`$x :new foo --user --project`,
+		`$x :new foo --user`,
+		`$x :new foo --project --project`,
 		`$x :new foo bar`,
 		`$x :new foo "A description"`,
 		`$x :new help`,
