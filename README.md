@@ -86,17 +86,25 @@ duplicate names. If no application commands exist, help shows the absolute
 user-wide and project directories where they can be created.
 
 `:new` does not write files or open an editor. It generates an instruction for
-the current agent to create or edit a command with the agent's normal file tools:
+the current agent to create or edit a Markdown command file with the agent's
+normal file tools:
 
 ```text
 $x :new code/review
-$x :new --user text/concise
+$x :new text/concise --user
 $x :new git/commit -- Create a Conventional Commits helper.
 ```
 
-The default target is project scope. Use `--user` for the user-wide command tree.
-If the command name is omitted, the generated prompt asks the agent to determine
-one with you before writing.
+The command name is required and is always the first argument. Use `--user` or
+`--project` after the name to select scope explicitly. Outside the user home, the
+default target is project scope. When invoked from the user home, the default is
+the user-wide command tree, so `--user` is unnecessary there.
+
+Text after `--` is the optional one-line command description. If it is omitted,
+the generated prompt asks the user for a description. The agent always asks the
+user for the command body before writing. New commands use YAML `description`
+frontmatter followed by the Markdown prompt body, and the target filename always
+ends in `.md`.
 
 `:version` reports the installed dispatcher version:
 
@@ -124,6 +132,9 @@ content and is not parsed as Komut syntax:
 ```text
 $x code/review src/foo.go + concise -- Keep the public API stable.
 ```
+
+For `:new`, the same `--` marker has builtin-specific meaning: its text is the
+command description.
 
 Quote an argument when it contains spaces or when `+` or `--` must be literal:
 
@@ -156,20 +167,21 @@ your existing Git credentials.
 
 ### Codex
 
-Add the Komut marketplace:
+Add the Komut marketplace and install the plugin from the command line:
 
 ```sh
 codex plugin marketplace add roktas/komut
+codex plugin add komut@komut
 ```
 
-Start Codex and open the plugin browser:
+Start a new Codex session after installation.
 
-```text
-/plugins
+To update Komut later, refresh its marketplace snapshot and reinstall the plugin:
+
+```sh
+codex plugin marketplace upgrade komut
+codex plugin add komut@komut
 ```
-
-Select the **Komut** marketplace, install `komut`, then start a new Codex
-session.
 
 Codex uses the canonical Komut syntax:
 
