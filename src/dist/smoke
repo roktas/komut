@@ -19,6 +19,12 @@ EOF
 test -f "$dist/plugins/antigravity/plugin.json"
 test -f "$dist/plugins/antigravity/skills/x/SKILL.md"
 
+expected_version=$(sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$dist/plugins/codex/.codex-plugin/plugin.json")
+if [ -z "$expected_version" ]; then
+        echo "smoke: cannot read Codex package version" >&2
+        exit 1
+fi
+
 for plugin in codex claude opencode antigravity; do
         output=$(
                 cd "$project"
@@ -42,7 +48,7 @@ for plugin in codex claude opencode antigravity; do
                 cd "$project"
                 HOME="$home" "$dist/plugins/$plugin/bin/x" "\$x :version"
         )
-        if [ "$version" != 'Komut 0.3.0' ]; then
+        if [ "$version" != "Komut $expected_version" ]; then
                 echo "smoke: $plugin version returned: $version" >&2
                 exit 1
         fi
@@ -52,12 +58,15 @@ payload=$(printf '{"prompt":"%s","cwd":"%s"}' "\$x hello world" "$project")
 codex_hook=$(printf '%s' "$payload" | HOME="$home" "$dist/plugins/codex/bin/x" --hook)
 claude_hook=$(printf '%s' "$payload" | HOME="$home" CLAUDE_PLUGIN_ROOT="$dist/plugins/claude" "$dist/plugins/claude/hooks/run.cmd")
 
-if [ "$codex_hook" != "$claude_hook" ]; then
-        echo "smoke: Codex and Claude hook transports differ" >&2
+printf '%s' "$codex_hook" | grep -F '"hookEventName":"UserPromptSubmit"' >/dev/null
+printf '%s' "$codex_hook" | grep -F '"suppressOutput":true' >/dev/null
+printf '%s' "$codex_hook" | grep -F 'Hello world' >/dev/null
+printf '%s' "$claude_hook" | grep -F '"hookEventName":"UserPromptSubmit"' >/dev/null
+if printf '%s' "$claude_hook" | grep -F '"suppressOutput":true' >/dev/null; then
+        echo "smoke: Claude hook unexpectedly suppresses output" >&2
         exit 1
 fi
-printf '%s' "$codex_hook" | grep -F '"hookEventName":"UserPromptSubmit"' >/dev/null
-printf '%s' "$codex_hook" | grep -F 'Hello world' >/dev/null
+printf '%s' "$claude_hook" | grep -F 'Hello world' >/dev/null
 
 claude_native_payload=$(printf '{"hook_event_name":"UserPromptExpansion","expansion_type":"slash_command","command_name":"komut:x","command_args":"hello world","command_source":"plugin","cwd":"%s"}' "$project")
 claude_native=$(printf '%s' "$claude_native_payload" | HOME="$home" CLAUDE_PLUGIN_ROOT="$dist/plugins/claude" "$dist/plugins/claude/hooks/run.cmd")
