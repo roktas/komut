@@ -1,0 +1,11 @@
+{
+  "name": "komut-opencode",
+  "version": "0.3.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "beta"
+  }
+}

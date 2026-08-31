@@ -1,0 +1,28 @@
+{
+  "description": "Expand canonical $x and native /komut:x invocations before Claude processes the turn.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run.cmd\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptExpansion": [
+      {
+        "matcher": "^(komut:x|x)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run.cmd\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
