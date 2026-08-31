@@ -93,7 +93,15 @@ func TestNewGeneratesProjectPromptWithoutMutation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, text := range []string{"Scope: project", target, "Review API compatibility.", "`description`", "`$1` through `$9`"} {
+	for _, text := range []string{
+		"Scope: project",
+		target,
+		"Description: Review API compatibility.",
+		"Command body: ask the user",
+		"filename must end in `.md`",
+		"YAML frontmatter",
+		"`$1` through `$9`",
+	} {
 		if !strings.Contains(got, text) {
 			t.Fatalf("new prompt = %q, missing %q", got, text)
 		}
@@ -103,34 +111,43 @@ func TestNewGeneratesProjectPromptWithoutMutation(t *testing.T) {
 	}
 }
 
-func TestNewUserScopeAndUnnamedCommand(t *testing.T) {
+func TestNewUserScopeAndMissingDescription(t *testing.T) {
 	base := t.TempDir()
 	home := filepath.Join(base, "home")
 	cwd := filepath.Join(home, "work")
 	mustMkdirAll(t, cwd)
+	target := filepath.Join(home, ".agents", "commands", "text", "concise.md")
 
-	got, err := Dispatch(`$x :new --user`, cwd, home)
+	got, err := Dispatch(`$x :new text/concise --user`, cwd, home)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(got, "Scope: user") || !strings.Contains(got, filepath.Join(home, ".agents", "commands")) || !strings.Contains(got, "determine a valid name with the user") {
-		t.Fatalf("new prompt = %q", got)
+	for _, text := range []string{
+		"Scope: user",
+		target,
+		"Description: not specified; ask the user",
+		"Command body: ask the user",
+	} {
+		if !strings.Contains(got, text) {
+			t.Fatalf("new prompt = %q, missing %q", got, text)
+		}
 	}
 }
 
-func TestNewRejectsProjectScopeAtUserHome(t *testing.T) {
+func TestNewDefaultsToUserScopeAtUserHome(t *testing.T) {
 	home := t.TempDir()
+	target := filepath.Join(home, ".agents", "commands", "review.md")
 
-	_, err := Dispatch(`$x :new review`, home, home)
-	assertErrorCode(t, err, ErrInvalidInvocation)
-
-	got, err := Dispatch(`$x :new --user review`, home, home)
+	got, err := Dispatch(`$x :new review`, home, home)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(got, filepath.Join(home, ".agents", "commands", "review.md")) {
-		t.Fatalf("new user prompt = %q", got)
+	if !strings.Contains(got, "Scope: user") || !strings.Contains(got, target) {
+		t.Fatalf("new home prompt = %q", got)
 	}
+
+	_, err = Dispatch(`$x :new review --project`, home, home)
+	assertErrorCode(t, err, ErrInvalidInvocation)
 }
 
 func TestNewRejectsUnsafeProjectAuthoringPath(t *testing.T) {
@@ -156,8 +173,11 @@ func TestNewRejectsInvalidOptionsAndNames(t *testing.T) {
 	mustMkdirAll(t, cwd)
 
 	for _, input := range []string{
-		`$x :new --user --project foo`,
+		`$x :new`,
+		`$x :new --user`,
+		`$x :new foo --user --project`,
 		`$x :new foo bar`,
+		`$x :new foo "A description"`,
 		`$x :new help`,
 	} {
 		if _, err := Dispatch(input, cwd, home); err == nil {
